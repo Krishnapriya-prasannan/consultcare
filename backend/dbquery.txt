@@ -1,0 +1,123 @@
+Create Database ConsultcareDB;
+
+Use ConsultcareDB;
+
+Create Table Patient(
+    pat_id Int,
+    pat_name Varchar(60) Not Null,
+    pat_dob Date Not Null,
+    pat_adr Varchar(100) Not Null,
+    pat_ph_no Varchar(15) Not Null,
+    pat_email Varchar(60),
+    pat_sex Varchar(1) Not Null,
+    pat_reg_no Varchar(10) Not Null,
+    pat_status Varchar(1) Not Null,
+    Primary Key(pat_id)
+);
+
+Create Table Master_sl(
+    sl_flag Varchar(10) Primary Key,
+    Sl_No Int Not Null
+);
+
+Create Table Staff(
+    stf_id Int,
+    stf_type Varchar(10) Not Null,
+    stf_name Varchar(60) Not Null,
+    stf_speciality Varchar(50) Not Null,
+    stf_email Varchar(60),
+    stf_ph_no Varchar(15) Not Null,
+    stf_qualification Varchar(100),
+    stf_Experience Varchar(500),
+    stf_sex Varchar(1) Not Null,
+    stf_img_path Varchar(60),
+    stf_pswd Varchar(100) Not Null,
+    stf_status Varchar(1) Not Null,
+    Primary Key(stf_id)   
+);
+
+Create Table Appointment (
+    appt_id Int,
+    appt_stf_id Int Not Null,
+    appt_pat_id Int Not Null,
+    appt_date Date Not Null,
+    appt_time_slt Time Not Null,
+    appt_tok_no Int Not Null,
+    appt_remarks Varchar(100),
+    appt_status Varchar(1) ,
+    Primary Key(appt_id),
+    Foreign Key(appt_stf_id) References staff(stf_id),
+    Foreign Key(appt_pat_id) References Patient(pat_id)
+);
+
+
+Create Table availability (
+    avail_id Int,
+    avail_stf_id Int Not Null,
+    avail_day Varchar(10) Not Null,
+    avail_tot_tok Int Not Null,
+    avail_status Varchar(1),
+    Primary Key(avail_id),
+    Foreign Key(avail_stf_id) References staff(stf_id)
+);
+
+
+Create Table TimeSlot (
+    tsl_id Int,
+    tsl_avail_id Int Not Null,
+    tsl_fr_time Time Not Null,
+    tsl_to_time Time Not Null,
+    tsl_status Varchar(1) Not Null default 'O',
+    Primary Key(tsl_id),
+    Foreign Key(tsl_avail_id) References availability(avail_id)
+);
+
+Create Table Token (
+    tok_id Int,
+    tok_time_id Int Not Null,
+    tok_fr_time Time Not Null,
+    tok_to_time Time Not Null,
+    tok_no Int Not Null,
+    tok_status Varchar(1) Not Null Default 'A',
+    Primary Key(tok_id),
+    Foreign Key(tok_time_id) References TimeSlot(tsl_id)
+);
+
+Create Table Consultation (
+    cons_id Int,
+    cons_appt_id Int Not Null,
+    cons_stf_id Int Not Null,
+    cons_pat_id Int Not Null,
+    cons_pat_condition Text,
+    cons_diagnosis Text,
+    cons_remarks Text,
+    cons_fee Decimal(10, 2),
+    Primary Key(cons_id),
+    Foreign Key(cons_appt_id) References appointment(appt_id),
+    Foreign Key(cons_pat_id) References Patient(pat_id),
+    Foreign Key(cons_stf_id) References staff(stf_id)
+);
+
+Create Table Medication (
+    med_id Int,
+    med_cons_id Int Not Null,
+    med_appt_id Int Not Null,
+    med_name Varchar(100) Not Null,
+    med_dosage Varchar(50) Not Null,
+    med_duration Varchar(30),
+    med_instruction TinyText,
+    med_remarks TinyText,
+    Primary Key(med_id),
+    Foreign Key(med_cons_id) References Consultation(cons_id)
+);
+
+Create Table holiday (
+    hol_id Int,
+    hol_stf_id Int Not Null,
+    hol_date Date Not Null,
+    hol_type Varchar(3) Not Null,
+    Primary Key(hol_id),
+    Foreign Key(hol_stf_id) References staff(stf_id)
+);
+
+Show Tables;
