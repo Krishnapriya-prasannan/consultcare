@@ -14,7 +14,7 @@ export default function WhoAmI() {
               alt="User Icon"
               className="mx-auto mb-4 rounded-full w-24 h-24" 
             />
-            <h2 className="text-lg font-semibold">User</h2>
+            <h2 className="text-lg font-semibold">Patient</h2>
           </div>
         </Link>
         <Link to="/login/staff">
