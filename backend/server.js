@@ -13,8 +13,9 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 
 const db = mysql.createConnection({
+  socketPath: '/var/run/mysqld/mysqld.sock',
   host: 'localhost',
-  user: 'root', 
+  user: 'web', 
   password: 'mysql12', 
   database: 'ConsultcareDB' 
 });
