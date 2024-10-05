@@ -3,16 +3,16 @@ import { Link } from 'react-router-dom';
 
 const Signup = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-400 to-purple-600 flex flex-col justify-center items-center">
-      <h1 className="text-white text-4xl font-bold mb-8">Sign Up</h1>
-      <div className="bg-white p-8 rounded-lg shadow-lg w-80">
+    <div className="min-h-screen flex flex-col justify-center items-center">
+      <h1 className="text-[#B08968] text-4xl font-bold mb-8">Sign Up</h1>
+      <div className="bg-[#E6CCB2] p-8 rounded-lg shadow-lg w-80">
         <form>
           <div className="mb-4">
             <label htmlFor="name" className="block text-gray-700">Name:</label>
             <input
               type="text"
               id="name"
-              className="border rounded w-full py-2 px-3"
+              className="border rounded w-full py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#B08968]"
               placeholder="Enter your full name"
               required
             />
@@ -22,7 +22,7 @@ const Signup = () => {
             <input
               type="date"
               id="dob"
-              className="border rounded w-full py-2 px-3"
+              className="border rounded w-full py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#B08968]"
               required
             />
           </div>
@@ -31,7 +31,7 @@ const Signup = () => {
             <input
               type="text"
               id="address"
-              className="border rounded w-full py-2 px-3"
+              className="border rounded w-full py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#B08968]"
               placeholder="Enter your address"
               required
             />
@@ -41,7 +41,7 @@ const Signup = () => {
             <input
               type="tel"
               id="phoneNo"
-              className="border rounded w-full py-2 px-3"
+              className="border rounded w-full py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#B08968]"
               placeholder="Enter your phone number"
               required
             />
@@ -51,7 +51,7 @@ const Signup = () => {
             <input
               type="email"
               id="email"
-              className="border rounded w-full py-2 px-3"
+              className="border rounded w-full py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#B08968]"
               placeholder="Enter your email"
               required
             />
@@ -60,7 +60,7 @@ const Signup = () => {
             <label htmlFor="sex" className="block text-gray-700">Gender:</label>
             <select
               id="sex"
-              className="border rounded w-full py-2 px-3"
+              className="border rounded w-full py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#B08968]"
               required
             >
               <option value="">Select your gender</option>
@@ -69,13 +69,13 @@ const Signup = () => {
               <option value="Other">Other</option>
             </select>
           </div>
-          <button type="submit" className="bg-blue-500 text-white py-2 px-4 rounded w-full">
+          <button type="submit" className="bg-[#B08968] text-white py-2 px-4 rounded w-full hover:bg-[#DDB892] transition duration-300">
             Sign Up
           </button>
         </form>
         <p className="mt-4 text-center">
           Already have an account?{' '}
-          <Link to="/login/user" className="text-blue-500 hover:underline">
+          <Link to="/login/user" className="text-[#B08968] hover:underline">
             Login here
           </Link>
         </p>

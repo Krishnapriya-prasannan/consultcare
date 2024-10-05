@@ -32,13 +32,13 @@ const LeftSideNavbar = () => {
         <h1 className="text-2xl font-bold mb-8">Menu</h1>
         <ul>
           <li className="mb-4">
-            <a href="#profile" className="hover:text-gray-200">Profile</a>
+            <a href="userpage/profile" className="hover:text-gray-200">Profile</a>
           </li>
           <li className="mb-4">
-            <a href="#book-appointment" className="hover:text-gray-200">Book Appointment</a>
+            <a href="userpage/appointment" className="hover:text-gray-200">Appointment</a>
           </li>
           <li className="mb-4">
-            <a href="#prescription" className="hover:text-gray-200">Prescription</a>
+            <a href="#userpage/prescription" className="hover:text-gray-200">Prescription</a>
           </li>
         </ul>
       </div>

@@ -6,9 +6,9 @@ const Login = () => {
   const isUser = location.pathname.includes('user');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-400 to-purple-600 flex flex-col justify-center items-center">
-      <h1 className="text-white text-4xl font-bold mb-8">Login</h1>
-      <div className="bg-white p-8 rounded-lg shadow-lg w-80">
+    <div className="min-h-screen flex flex-col justify-center items-center">
+      <h1 className="text-[#B08968] text-4xl font-bold mb-8">Login</h1>
+      <div className="bg-[#E6CCB2] p-8 rounded-lg shadow-lg w-80">
         <form>
           {isUser ? (
             <>
@@ -17,7 +17,7 @@ const Login = () => {
                 <input
                   type="tel"
                   id="phoneNo"
-                  className="border rounded w-full py-2 px-3"
+                  className="border rounded w-full py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#B08968]"
                   placeholder="Enter your phone number"
                   required
                 />
@@ -27,7 +27,7 @@ const Login = () => {
                 <input
                   type="date"
                   id="dob"
-                  className="border rounded w-full py-2 px-3"
+                  className="border rounded w-full py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#B08968]"
                   required
                 />
               </div>
@@ -39,7 +39,7 @@ const Login = () => {
                 <input
                   type="text"
                   id="staffId"
-                  className="border rounded w-full py-2 px-3"
+                  className="border rounded w-full py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#B08968]"
                   placeholder="Enter your ID"
                   required
                 />
@@ -49,21 +49,21 @@ const Login = () => {
                 <input
                   type="password"
                   id="staffPassword"
-                  className="border rounded w-full py-2 px-3"
+                  className="border rounded w-full py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#B08968]"
                   placeholder="Enter your password"
                   required
                 />
               </div>
             </>
           )}
-          <button type="submit" className="bg-blue-500 text-white py-2 px-4 rounded w-full">
+          <button type="submit" className="bg-[#B08968] text-white py-2 px-4 rounded w-full hover:bg-[#DDB892] transition duration-300">
             Login
           </button>
         </form>
         {isUser && (
           <p className="mt-4 text-center">
             Don't have an account?{' '}
-            <Link to="/signup" className="text-blue-500 hover:underline">
+            <Link to="/signup" className="text-[#B08968] hover:underline">
               Sign up here
             </Link>
           </p>
