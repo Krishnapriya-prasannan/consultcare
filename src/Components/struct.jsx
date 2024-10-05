@@ -1,7 +1,7 @@
 import React from 'react';
-//import Header from './UserPage/header'; // Import Header component
+//import Header from './UserPage/header'; 
 //import LeftSideNavbar from './UserPage/LeftSideNavbar'; 
-import ResponsiveComponentList from './UserPage/dash'; // Import the ResponsiveComponentList component
+import ResponsiveComponentList from './UserPage/dash'; 
 const UserPage = () => {
     return (
      
