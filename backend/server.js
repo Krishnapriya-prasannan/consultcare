@@ -18,6 +18,10 @@ const dbConfig = {
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
 };
+if (process.env.DB_SOCKET_PATH) {
+  dbConfig.socketPath = process.env.DB_SOCKET_PATH;
+}
+
 
 // Create the database connection
 const db = mysql.createConnection(dbConfig);

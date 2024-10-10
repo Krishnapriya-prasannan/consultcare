@@ -2,7 +2,7 @@ import React from 'react';
 import { FaUserMd } from 'react-icons/fa'; 
 import { FaUser } from 'react-icons/fa'; 
 
-const Header = ({ name, id }) => {
+const Header = ({ name, regno }) => {
   return (
     <header className="bg-[#E6CCB2] text-[#3B2F2F] p-12 flex flex-row items-center justify-between relative">
       {/* ConsultCare Logo and Patient Information */}
@@ -15,8 +15,8 @@ const Header = ({ name, id }) => {
           <div className="flex flex-col items-start">
           <p className="text-lg-sm font-bold ">Welcome</p>
             <h1 className="text-lg font-bold">{name}</h1>
-            <p className="text-sm font-bold">ID: {id}</p>
             <p className="text-sm font-bold">Name: {name}</p>
+            <p className="text-sm font-bold">Reg No: {regno}</p>
           </div>
         </div>
       </div>
