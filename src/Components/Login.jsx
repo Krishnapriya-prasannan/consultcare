@@ -29,17 +29,18 @@ const Login = () => {
           phoneNo: formData.phoneNo,
           dob: formData.dob,
         });
+        const{patient_id} = response.data;
         console.log('Patient logged in:', response.data);
-        // Redirect to patient dashboard after successful login
+        localStorage.setItem('patient_id',patient_id);
+        navigate('/UserPage');
       } else {
         const response = await axios.post('http://localhost:5000/api/login/staff', {
           staffId: formData.staffId,
           staffPassword: formData.staffPassword,
         });
         console.log('Staff logged in:', response.data);
-        // Redirect to staff dashboard after successful login
+        navigate('/DoctorPage');
       }
-      navigate('/UserPage'); // Adjust the redirect based on user type
     } catch (error) {
       console.error('Error logging in:', error);
       setError(error.response?.data.message || 'Login failed. Please try again.'); // Display error message
