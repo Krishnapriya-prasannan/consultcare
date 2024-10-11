@@ -38,7 +38,7 @@ const LeftSideNavbar = () => {
             <a href="userpage/appointment" className="hover:text-gray-200">Appointment</a>
           </li>
           <li className="mb-4">
-            <a href="#userpage/prescription" className="hover:text-gray-200">Prescription</a>
+            <a href="userpage/prescription" className="hover:text-gray-200">Prescription</a>
           </li>
         </ul>
       </div>
