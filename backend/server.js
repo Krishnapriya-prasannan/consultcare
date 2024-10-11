@@ -95,6 +95,45 @@ app.post('/api/login/patient', (req, res) => {
   });
 });
 
+// Patient Details API
+app.get('/api/Retrievepatient/:id', (req, res) => {
+  const patientId = req.params.id;
+
+  // Prepare the SQL query to call the stored procedure
+  const sql = `
+      CALL Retrieve_Pat_Details(?, @name, @dob, @address, @phone_no, @email, @registration_no, @sex);
+  `;
+
+  // Execute the stored procedure
+  db.query(sql, [patientId], (err) => {
+      if (err) {
+          console.error('Error executing stored procedure:', err);
+          return res.status(500).json({ message: 'Error executing stored procedure' });
+      }
+
+      // Query to retrieve the output values from the stored procedure
+      const outputSql = `
+          SELECT @name AS name, @dob AS dob, @address AS address, 
+                 @phone_no AS phone_no, @email AS email, 
+                 @registration_no AS regno, @sex AS sex;
+      `;
+
+      // Fetch output values
+      db.query(outputSql, (err, results) => {
+          if (err) {
+              console.error('Error retrieving output values:', err);
+              return res.status(500).json({ message: 'Error retrieving patient details' });
+          }
+
+          if (results.length > 0) {
+              return res.status(200).json(results[0]); // Return patient details
+          } else {
+              return res.status(404).json({ message: 'Patient not found' });
+          }
+      });
+  });
+});
+
 
 // Staff Login API
 app.post('/api/login/staff', (req, res) => {

@@ -50,6 +50,21 @@ const Profile = () => {
   };
 
   useEffect(() => {
+    // Load patient details from local storage
+    const loadedDetails = {
+      regNo: localStorage.getItem('patientRegNo') || '',
+      name: localStorage.getItem('patientName') || '',
+      sex: localStorage.getItem('patientSex') || '',
+      dob: localStorage.getItem('patientDob') || '',
+      address: localStorage.getItem('patientAddress') || '',
+      email: localStorage.getItem('patientEmail') || '',
+      phoneNumber: localStorage.getItem('patientPhoneNo') || '',
+    };
+
+    setPatientDetails(loadedDetails);
+  }, []); // Empty dependency array means this effect runs once when the component mounts
+
+  useEffect(() => {
     if (patientDetails.dob) {
       const age = calculateAge(patientDetails.dob);
       setPatientDetails((prevDetails) => ({
@@ -62,7 +77,13 @@ const Profile = () => {
   const saveDetails = () => {
     if (validateFields()) {
       toggleEditMode();
-      // Saving logic here
+      // Save updated details to local storage if needed
+      localStorage.setItem('patientName', patientDetails.name);
+      localStorage.setItem('patientSex', patientDetails.sex);
+      localStorage.setItem('patientDob', patientDetails.dob);
+      localStorage.setItem('patientAddress', patientDetails.address);
+      localStorage.setItem('patientEmail', patientDetails.email);
+      localStorage.setItem('patientPhoneNo', patientDetails.phoneNumber);
     }
   };
 
@@ -194,17 +215,9 @@ const Profile = () => {
           ) : (
             <button
               onClick={toggleEditMode}
-              className="bg-[#7F4F24] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded mr-2 transition duration-300 transition-transform transform hover:scale-105"
+              className="bg-[#9C6644] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded transition duration-300 transition-transform transform hover:scale-105"
             >
               Edit
-            </button>
-          )}
-          {isEditing && (
-            <button
-              onClick={toggleEditMode}
-              className="bg-[#7F4F24] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded transition duration-300 transition-transform transform hover:scale-105"
-            >
-              Cancel
             </button>
           )}
         </div>
@@ -214,3 +227,4 @@ const Profile = () => {
 };
 
 export default Profile;
+
