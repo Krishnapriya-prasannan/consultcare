@@ -3,11 +3,21 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import WhoAmI from './Components/who';
 import Login from './Components/Login';
 import Signup from './Components/Signup';
-import UserPage from './Components/struct';
-import Profile from './Components/UserPage/profile';
-import Appointment from './Components/UserPage/appointment';
-import Prescription from './Components/UserPage/prescription';
-
+import UserPage from './Components/userStruct';
+import Profile from './Components/UserPage/UserComponents/profile';
+import Appointment from './Components/UserPage/UserComponents/appointment';
+import Prescription from './Components/UserPage/UserComponents/prescription';
+import DoctorPage from './Components/docStruct';
+import AdminPage from './Components/adStruct';
+import AdAppmt from './Components/AdminPage/AdComponents/adAppmt';
+import AdDoc from './Components/AdminPage/AdComponents/adDoctor';
+import AdLeave from './Components/AdminPage/AdComponents/adLeave';
+import AdPatient from './Components/AdminPage/AdComponents/adPatient';
+import AdProfile from './Components/AdminPage/AdComponents/adProfile';
+import DocAppmt from './Components/DoctorPage/DocComponents/docAppmt';
+import DocLeave from './Components/DoctorPage/DocComponents/docLeave';
+import DocPatient from './Components/DoctorPage/DocComponents/docPatient';
+import DocProfile from './Components/DoctorPage/DocComponents/docProfile';
 const App = () => {
   return (
     <Router>
@@ -20,6 +30,18 @@ const App = () => {
         <Route path="/userpage/profile" element={<Profile />} />
         <Route path="/userpage/appointment" element={<Appointment />} />
         <Route path="/userpage/prescription" element={<Prescription />} />
+        <Route path="/adminpage" element={<AdminPage />} />
+        <Route path="/adminpage/appointment" element={<AdAppmt />} />
+        <Route path="/adminpage/doctor" element={<AdDoc />} />
+        <Route path="/adminpage/leave" element={<AdLeave />} />
+        <Route path="/adminpage/patient" element={<AdPatient />} />
+        <Route path="/adminpage/profile" element={<AdProfile />} />
+        <Route path="/doctorpage" element={<DoctorPage />} />
+        <Route path="/doctorpage/appointment_schedule" element={<DocAppmt />} />
+        <Route path="/doctorpage/leave" element={<DocLeave />} />
+        <Route path="/doctorpage/patient" element={<DocPatient />} />
+        <Route path="/doctorpage/profile" element={<DocProfile />} />
+        
       </Routes>
     </Router>
   );

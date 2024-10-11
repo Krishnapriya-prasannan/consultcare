@@ -125,7 +125,7 @@ const Appointment = () => {
 
       {activeTab === 'view' && (
         <div>
-          <h2 className="text-2xl font-bold mb-4">View Appointments</h2>
+          
           {appointments.length > 0 ? (
             appointments.map((appointment) => (
               <div key={appointment.id} className="mb-2 p-2 border-b border-7F5539">
@@ -140,7 +140,7 @@ const Appointment = () => {
 
       {activeTab === 'create' && (
         <div className="bg-FFE8D6 p-4 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-bold mb-4">{editingAppointment ? 'Edit Appointment' : 'Create Appointment'}</h2>
+          
           <select
             className="border-b-2 border-7F5539 mb-4 p-2 rounded"
             onChange={(e) => setSpeciality(e.target.value)}
@@ -165,7 +165,9 @@ const Appointment = () => {
   onChange={(e) => setDate(e.target.value)}
   value={date}
   min={new Date().toISOString().split("T")[0]} // Set min date to today
+  onKeyDown={(e) => e.preventDefault()} // Disable manual typing
 />
+
 
 
           {/* Conditionally render available time slots */}
@@ -193,7 +195,6 @@ const Appointment = () => {
 
       {activeTab === 'cancel' && (
         <div className="bg-FFE8D6 p-4 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-bold mb-4">Cancel Appointment</h2>
           {appointments.length > 0 ? (
             appointments.map((appointment) => (
               <div key={appointment.id} className="flex justify-between items-center mb-2 mx-3">
