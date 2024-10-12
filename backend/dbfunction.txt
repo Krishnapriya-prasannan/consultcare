@@ -1,0 +1,26 @@
+//to generate regestartion number and token number
+
+DELIMITER $$
+
+Create Function AutoGenerate(fn_flag Varchar(3))
+Returns Int 
+Deterministic
+Begin
+  Declare fn_sl_no Int;
+
+  Select Ifnull(Max(sl_no), 0) Into fn_sl_no 
+  From Master_Sl 
+  Where sl_flag = fn_flag;
+
+  If fn_sl_no = 0 Then
+    Set fn_sl_no = fn_sl_no + 1;
+    Insert Into Master_Sl(sl_flag, sl_no) Values (fn_flag, fn_sl_no);
+  Else 
+    Set fn_sl_no = fn_sl_no + 1;
+    Update Master_Sl Set sl_no = fn_sl_no Where sl_flag = fn_flag;
+  End If;
+
+  Return fn_sl_no;
+End$$
+
+DELIMITER ;

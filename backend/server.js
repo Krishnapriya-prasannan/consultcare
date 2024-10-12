@@ -33,21 +33,57 @@ db.connect((err) => {
   }
   console.log('Connected to MySQL database');
 });
+// POST /api/patients/signup
+app.post('/api/patients/signup', (req, res) => {
+  const { pat_name, pat_dob, pat_adr, pat_ph_no, pat_email, pat_sex } = req.body;
 
-app.post('/api/signup', (req, res) => {
-  const { name, dob, address, phoneNo, email, sex } = req.body;
+  const query = `CALL ManagePatientProfile(?, NULL, ?, ?, ?, ?, ?, ?, NULL)`;
 
-  const query = 'CALL AddPatient(?, ?, ?, ?, ?, ?, @patient_id);';
-  
-  db.query(query, [name, dob, address, phoneNo, email, sex], (err) => {
-    if (err) {
-      console.error('Error executing procedure:', err);
-      return res.status(500).json({ message: 'Error adding patient', error: err.message });
-    }
-
-    res.status(201).json({ message: 'Patient added successfully' });
+  db.query(query, ['INS', pat_name, pat_dob, pat_adr, pat_ph_no, pat_email, pat_sex], (err, results) => {
+      if (err) {
+          if (err.sqlState === '45000') {
+              return res.status(400).json({ error: err.message });  // Custom error from the procedure
+          }
+          return res.status(500).json({ error: 'Database error.' });
+      }
+      return res.status(201).json({ message: 'Patient signed up successfully.', data: results });
   });
 });
+
+// PUT /api/patients/update/:id
+app.put('/api/patients/update/:id', (req, res) => {
+  const pat_id = req.params.id;
+  const { pat_name, pat_dob, pat_adr, pat_ph_no, pat_email, pat_sex, pat_reg_no } = req.body;
+
+  const query = `CALL ManagePatientProfile(?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+  db.query(query, ['UPD', pat_id, pat_name, pat_dob, pat_adr, pat_ph_no, pat_email, pat_sex, pat_reg_no], (err, results) => {
+      if (err) {
+          if (err.sqlState === '45000') {
+              return res.status(400).json({ error: err.message });  // Custom error from the procedure
+          }
+          return res.status(500).json({ error: 'Database error.' });
+      }
+      return res.status(200).json({ message: 'Patient updated successfully.', data: results });
+  });
+});
+// DELETE /api/patients/delete/:id
+app.delete('/api/patients/delete/:id', (req, res) => {
+  const pat_id = req.params.id;
+
+  const query = `CALL ManagePatientProfile(?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL)`;
+
+  db.query(query, ['DEL', pat_id], (err, results) => {
+      if (err) {
+          if (err.sqlState === '45000') {
+              return res.status(400).json({ error: err.message });  // Custom error from the procedure
+          }
+          return res.status(500).json({ error: 'Database error.' });
+      }
+      return res.status(200).json({ message: 'Patient deleted (locked) successfully.', data: results });
+  });
+});
+
 
 // Patient Login API
 app.post('/api/login/patient', (req, res) => {
@@ -101,7 +137,7 @@ app.get('/api/Retrievepatient/:id', (req, res) => {
 
   // Prepare the SQL query to call the stored procedure
   const sql = `
-      CALL Retrieve_Pat_Details(?, @name, @dob, @address, @phone_no, @email, @registration_no, @sex);
+      CALL Retrieve_Pat_Details(?, @name, @dob, @address, @phone_no, @email, @registration_no, @sex,@status);
   `;
 
   // Execute the stored procedure
@@ -115,7 +151,7 @@ app.get('/api/Retrievepatient/:id', (req, res) => {
       const outputSql = `
           SELECT @name AS name, @dob AS dob, @address AS address, 
                  @phone_no AS phone_no, @email AS email, 
-                 @registration_no AS regno, @sex AS sex;
+                 @registration_no AS regno, @sex AS sex,@status AS status;
       `;
 
       // Fetch output values

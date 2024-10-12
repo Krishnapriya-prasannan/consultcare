@@ -25,7 +25,7 @@ const Header = () => {
           const response = await axios.get(`http://localhost:5000/api/Retrievepatient/${patientId}`);
           
           // Destructure the data from the response
-          const { name, regno, dob, address, phone_no, email, sex } = response.data;
+          const { name, regno, dob, address, phone_no, email, sex, status } = response.data;
 
           console.log('API Response:', response.data);
           console.log('patient_id:', patientId);
@@ -38,13 +38,15 @@ const Header = () => {
           localStorage.setItem('patientPhoneNo', phone_no);
           localStorage.setItem('patientEmail', email);
           localStorage.setItem('patientSex', sex);
+          localStorage.setItem('patientstatus', status);
 
           console.log('Stored name:', localStorage.getItem('patientName'));
           console.log('Stored regno:', localStorage.getItem('patientRegNo'));
+          console.log('Stored status:', localStorage.getItem('patientstatus'));
 
 
           // Update the state with the patient details
-          setPatientDetails({ name, regno, dob, address, phone_no, email, sex });
+          setPatientDetails({ name, regno, dob, address, phone_no, email, sex, status });
 
         } catch (error) {
           console.error('Error fetching patient details:', error);
@@ -55,7 +57,7 @@ const Header = () => {
     fetchPatientDetails();
   }, []);
 
-  const { name, regno } = patientDetails;
+  const { name, regno, } = patientDetails;
 
   return (
     <header className="bg-[#E6CCB2] text-[#3B2F2F] p-12 flex flex-row items-center justify-between relative">

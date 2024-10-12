@@ -10,24 +10,46 @@ const Signup = () => {
     address: '',
     phoneNo: '',
     email: '',
-    sex: '',
+    sex: ''
   });
+
+  const formatName = (name) => {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+
+    // Format the name field specifically
+    if (name === 'name') {
+      setFormData({ ...formData, [name]: formatName(value) });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const dataToSubmit = {
+      pat_name: formData.name,
+      pat_dob: formData.dob,
+      pat_adr: formData.address,
+      pat_ph_no: formData.phoneNo,
+      pat_email: formData.email,
+      pat_sex: formData.sex
+    };
+
     try {
-      const response = await axios.post('http://localhost:5000/api/signup', formData);
+      const response = await axios.post('http://localhost:5000/api/patients/signup', dataToSubmit);
       console.log('Patient added:', response.data);
       // Redirect to login page after successful signup
       navigate('/login/user');
     } catch (error) {
       console.error('Error signing up:', error);
-      alert('Signup failed. Please try again.'); // Optional error message
+      alert('Signup failed. Please try again.');
     }
   };
 
