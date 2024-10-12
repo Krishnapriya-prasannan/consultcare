@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 
 const Signup = () => {
   const navigate = useNavigate();
+  const location = useLocation(); // To detect navigation state
+  const fromPatientManagement = location.state?.fromPatientManagement || false;
+
   const [formData, setFormData] = useState({
     name: '',
     dob: '',
@@ -45,8 +48,13 @@ const Signup = () => {
     try {
       const response = await axios.post('http://localhost:5000/api/patients/signup', dataToSubmit);
       console.log('Patient added:', response.data);
-      // Redirect to login page after successful signup
-      navigate('/login/user');
+
+      // Conditional redirection based on navigation source
+      if (fromPatientManagement) {
+        navigate('/adminpage/patient');
+      } else {
+        navigate('/login/user');
+      }
     } catch (error) {
       console.error('Error signing up:', error);
       alert('Signup failed. Please try again.');
@@ -55,7 +63,10 @@ const Signup = () => {
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center">
-      <h1 className="text-[#B08968] text-4xl font-bold mb-8">Sign Up</h1>
+      <h1 className="text-[#B08968] text-4xl font-bold mb-8">
+        {fromPatientManagement ? 'Add New Patient' : 'Sign Up'}
+      </h1>
+
       <div className="bg-[#E6CCB2] p-8 rounded-lg shadow-lg w-80">
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
@@ -132,16 +143,23 @@ const Signup = () => {
               <option value="O">Other</option>
             </select>
           </div>
-          <button type="submit" className="bg-[#B08968] text-white py-2 px-4 rounded w-full hover:bg-[#DDB892] transition duration-300">
-            Sign Up
+
+          <button
+            type="submit"
+            className="bg-[#B08968] text-white py-2 px-4 rounded w-full hover:bg-[#DDB892] transition duration-300"
+          >
+            {fromPatientManagement ? 'Add Patient' : 'Sign Up'}
           </button>
         </form>
-        <p className="mt-4 text-center">
-          Already have an account?{' '}
-          <Link to="/login/user" className="text-[#B08968] hover:underline">
-            Login here
-          </Link>
-        </p>
+
+        {!fromPatientManagement && (
+          <p className="mt-4 text-center">
+            Already have an account?{' '}
+            <Link to="/login/user" className="text-[#B08968] hover:underline">
+              Login here
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   );
