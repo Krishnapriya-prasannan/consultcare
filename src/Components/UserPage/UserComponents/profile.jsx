@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 const Profile = () => {
   const [patientDetails, setPatientDetails] = useState({
@@ -10,10 +11,13 @@ const Profile = () => {
     address: '',
     email: '',
     phoneNumber: '',
+    status: '' 
   });
 
+  const patientId = localStorage.getItem('patient_id');
   const [errors, setErrors] = useState({});
   const [isEditing, setIsEditing] = useState(false);
+  const [initialDetails, setInitialDetails] = useState({});
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -50,7 +54,6 @@ const Profile = () => {
   };
 
   useEffect(() => {
-    // Load patient details from local storage
     const loadedDetails = {
       regNo: localStorage.getItem('patientRegNo') || '',
       name: localStorage.getItem('patientName') || '',
@@ -59,10 +62,12 @@ const Profile = () => {
       address: localStorage.getItem('patientAddress') || '',
       email: localStorage.getItem('patientEmail') || '',
       phoneNumber: localStorage.getItem('patientPhoneNo') || '',
+      status: localStorage.getItem('patientstatus') || '', 
     };
 
     setPatientDetails(loadedDetails);
-  }, []); // Empty dependency array means this effect runs once when the component mounts
+    setInitialDetails(loadedDetails);
+  }, []);
 
   useEffect(() => {
     if (patientDetails.dob) {
@@ -74,19 +79,42 @@ const Profile = () => {
     }
   }, [patientDetails.dob]);
 
-  const saveDetails = () => {
+  const saveDetails = async () => {
     if (validateFields()) {
-      toggleEditMode();
-      // Save updated details to local storage if needed
-      localStorage.setItem('patientName', patientDetails.name);
-      localStorage.setItem('patientSex', patientDetails.sex);
-      localStorage.setItem('patientDob', patientDetails.dob);
-      localStorage.setItem('patientAddress', patientDetails.address);
-      localStorage.setItem('patientEmail', patientDetails.email);
-      localStorage.setItem('patientPhoneNo', patientDetails.phoneNumber);
+      try {
+        const { name, dob, address, phoneNumber, email, sex, regNo } = patientDetails;
+        const response = await axios.put(`http://localhost:5000/api/patients/update/${patientId}`, {
+          pat_name: name,
+          pat_dob: dob,
+          pat_adr: address,
+          pat_ph_no: phoneNumber,
+          pat_email: email,
+          pat_sex: sex,
+          pat_reg_no: regNo,
+        });
+
+        if (response.status === 200) {
+          localStorage.setItem('patientName', name);
+          localStorage.setItem('patientSex', sex);
+          localStorage.setItem('patientDob', dob);
+          localStorage.setItem('patientAddress', address);
+          localStorage.setItem('patientEmail', email);
+          localStorage.setItem('patientPhoneNo', phoneNumber);
+          localStorage.setItem('patientstatus', patientDetails.status);
+          setInitialDetails(patientDetails);
+          toggleEditMode();
+        }
+      } catch (error) {
+        console.error('Error updating patient details:', error);
+        alert('Failed to update profile. Please try again.');
+      }
     }
   };
 
+  const cancelEdit = () => {
+    setPatientDetails(initialDetails); 
+    toggleEditMode();
+  };
   return (
     <div className="min-h-screen bg-gray-100 flex justify-center items-center">
       <div className="max-w-4xl w-full bg-[#E6CCB2] shadow-md rounded-md p-6 mt-10">
@@ -96,6 +124,11 @@ const Profile = () => {
           <div className="col-span-1">
             <label className="block font-medium text-gray-700">Reg No:</label>
             <p className="mt-1 text-gray-600">{patientDetails.regNo || 'N/A'}</p>
+          </div>
+
+          <div className="col-span-1">
+            <label className="block font-medium text-gray-700">Status:</label>
+            <p className="mt-1 text-gray-600">{patientDetails.status || 'N/A'}</p> {/* Disabled status */}
           </div>
 
           <div className="col-span-1">
@@ -202,16 +235,25 @@ const Profile = () => {
             )}
             {errors.phoneNumber && <p className="text-red-500 text-sm">{errors.phoneNumber}</p>}
           </div>
+
         </div>
 
         <div className="flex justify-end mt-6">
           {isEditing ? (
-            <button
-              onClick={saveDetails}
-              className="bg-[#9C6644] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded mr-2 transition duration-300 transition-transform transform hover:scale-105"
-            >
-              Save
-            </button>
+            <>
+              <button
+                onClick={saveDetails}
+                className="bg-[#9C6644] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded mr-2 transition duration-300 transition-transform transform hover:scale-105"
+              >
+                Save
+              </button>
+              <button
+                onClick={cancelEdit}
+                className="bg-[#9C6644] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded transition duration-300 transition-transform transform hover:scale-105"
+              >
+                Cancel
+              </button>
+            </>
           ) : (
             <button
               onClick={toggleEditMode}
@@ -227,4 +269,3 @@ const Profile = () => {
 };
 
 export default Profile;
-

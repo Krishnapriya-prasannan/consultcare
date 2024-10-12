@@ -1,0 +1,50 @@
+$url = "http://localhost:5000/api/addorupdatepatient"
+$body = @{
+    flag = "INS"
+    pat_id = $null  # Not needed for insert
+    regNo = $null   # Set regNo to null for insert
+    name = "Alice Smith"
+    dob = "1985-05-15"
+    address = "456 Elm St"
+    phoneNo = "7871366917"
+    email = "alicesmith@example.com"
+    sex = "F"
+}
+
+# Convert the body to JSON and send the request
+$response = Invoke-RestMethod -Uri $url -Method Post -Body ($body | ConvertTo-Json -Depth 10) -ContentType "application/json"
+
+# Output the response
+$response
+
+
+# Define the API URL for updating a patient
+$apiUrl = "http://localhost:5000/api/patients/update/:id"
+
+# Define the form data for updating the patient
+$formData = @{
+    pat_id    = 1  # Replace with the patient ID you want to update
+    pat_name  = "John Doe Updated"
+    pat_dob   = "1990-06-01"
+    pat_adr   = "456 Updated Address"
+    pat_ph_no = "0987654321"
+    pat_email = "johnupdated@example.com"
+    pat_sex   = "M"
+    pat_reg_no = "R1"  # The registration number (required for updates)
+    flag      = "UPD"
+}
+
+# Convert the form data to JSON
+$jsonData = $formData | ConvertTo-Json
+
+# Try to send the request and catch errors
+try {
+    # Send POST request with JSON data for updating the patient
+    $response = Invoke-RestMethod -Uri $apiUrl -Method POST -Body $jsonData -ContentType "application/json"
+    
+    # Display the response
+    Write-Host "Response: " ($response | ConvertTo-Json -Depth 3)
+} catch {
+    # Handle error
+    Write-Host "Error: " $_.Exception.Message
+}

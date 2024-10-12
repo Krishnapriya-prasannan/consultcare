@@ -1,0 +1,172 @@
+//login patient 
+
+DELIMITER //
+
+CREATE PROCEDURE LoginUser(
+    IN input_phone_no VARCHAR(15),
+    IN input_dob DATE,
+    OUT output_patient_id INT,
+    OUT output_message VARCHAR(255)
+)
+BEGIN
+    DECLARE user_exists INT;
+    DECLARE patient_status VARCHAR(10);
+
+    -- Check if the user exists with the provided phone number and date of birth
+    SELECT COUNT(*) INTO user_exists
+    FROM Patient
+    WHERE pat_ph_no = input_phone_no AND pat_dob = input_dob;
+
+    -- If user exists, retrieve the patient ID and status
+    IF user_exists = 1 THEN
+        SELECT pat_id, pat_status INTO output_patient_id, patient_status
+        FROM Patient
+        WHERE pat_ph_no = input_phone_no AND pat_dob = input_dob;
+
+        -- Check the patient's status
+        IF patient_status = 'A' THEN
+            SET output_message = 'Login successful';
+        ELSEIF patient_status = 'L' THEN
+            SET output_message = 'Your account has been deleted. Please contact support if this is an error.';
+            SET output_patient_id = NULL; -- Set to NULL since login fails
+        END IF;
+    ELSE
+        -- If no matching user is found
+        SET output_message = 'Invalid phone number or date of birth';
+        SET output_patient_id = NULL; -- Set to NULL since login fails
+    END IF;
+END //
+
+DELIMITER ;
+
+// signup and edit patient 
+
+DELIMITER //
+
+CREATE PROCEDURE ManagePatientProfile(
+    IN flag VARCHAR(3),                -- 'INS' for insert, 'UPD' for update, 'DEL' for delete
+    IN in_pat_id INT,                  -- Patient ID (for update or delete)
+    IN in_pat_name VARCHAR(60),        -- Patient Name (for insert or update)
+    IN in_pat_dob DATE,                -- Patient Date of Birth (for insert or update)
+    IN in_pat_adr VARCHAR(100),        -- Patient Address (for insert or update)
+    IN in_pat_ph_no VARCHAR(15),       -- Patient Phone Number (for insert or update)
+    IN in_pat_email VARCHAR(60),       -- Patient Email (for insert or update)
+    IN in_pat_sex VARCHAR(1),          -- Patient Sex (for insert or update)
+    IN in_pat_reg_no VARCHAR(10)     -- Patient Registration Number (for insert or update)
+)
+BEGIN
+    DECLARE existing_phone INT;
+
+    -- If flag is 'INS', check if the phone number already exists
+    IF flag = 'INS' THEN
+        SELECT COUNT(*) INTO existing_phone 
+        FROM Patient 
+        WHERE pat_ph_no = in_pat_ph_no;
+
+        IF existing_phone > 0 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Phone number already exists.';
+        ELSE
+            INSERT INTO Patient (pat_name, pat_dob, pat_adr, pat_ph_no, pat_email, pat_sex, pat_reg_no, pat_status)
+            VALUES (in_pat_name, in_pat_dob, in_pat_adr, in_pat_ph_no, in_pat_email, in_pat_sex, CONCAT('R', AutoGenerate('REG')),'A');
+        END IF;
+
+    -- If flag is 'UPD', check if the patient ID exists
+    ELSEIF flag = 'UPD' THEN
+        SELECT COUNT(*) INTO existing_phone 
+        FROM Patient 
+        WHERE pat_id = in_pat_id;
+
+        IF existing_phone = 0 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Patient ID does not exist.';
+        ELSE
+            UPDATE Patient
+            SET 
+                pat_name = in_pat_name,
+                pat_dob = in_pat_dob,
+                pat_adr = in_pat_adr,
+                pat_ph_no = in_pat_ph_no,
+                pat_email = in_pat_email,
+                pat_sex = in_pat_sex,
+                pat_reg_no = in_pat_reg_no,
+                pat_status = 'A'
+            WHERE pat_id = in_pat_id;
+        END IF;
+
+    -- If flag is 'DEL', mark the patient as deleted
+    ELSEIF flag = 'DEL' THEN
+        SELECT COUNT(*) INTO existing_phone 
+        FROM Patient 
+        WHERE pat_id = in_pat_id;
+
+        IF existing_phone = 0 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Patient ID does not exist.';
+        ELSE
+            UPDATE Patient
+            SET 
+                pat_status = 'L'  -- 'L' for locked or deleted status
+            WHERE pat_id = in_pat_id;
+        END IF;
+    END IF;
+END //
+
+DELIMITER ;
+
+
+//retrive patient details
+
+DELIMITER //
+
+CREATE PROCEDURE Retrieve_Pat_Details(
+    IN input_pat_id INT,
+    OUT patient_name VARCHAR(60),
+    OUT patient_dob DATE,
+    OUT patient_adr VARCHAR(100),
+    OUT patient_ph_no VARCHAR(15),
+    OUT patient_email VARCHAR(60),
+    OUT patient_reg_no VARCHAR(10),  -- Changed to match the table definition
+    OUT patient_sex VARCHAR(1),
+    OUT patient_status VARCHAR(1)
+)
+BEGIN
+    -- Initialize output variables
+    SET patient_name = NULL;
+    SET patient_dob = NULL;
+    SET patient_adr = NULL;
+    SET patient_ph_no = NULL;
+    SET patient_email = NULL;
+    SET patient_reg_no = NULL;  -- Changed to match the table definition
+    SET patient_sex = NULL;
+    SET patient_status = NULL;
+
+    -- Query to retrieve patient details based on patient ID
+    SELECT 
+        p.pat_name, 
+        p.pat_dob, 
+        p.pat_adr, 
+        p.pat_ph_no, 
+        p.pat_email, 
+        p.pat_reg_no, 
+        p.pat_sex,
+        p.pat_status
+    INTO 
+        patient_name, 
+        patient_dob, 
+        patient_adr, 
+        patient_ph_no, 
+        patient_email, 
+        patient_reg_no,  -- Changed to match the table definition
+        patient_sex,
+        patient_status
+    FROM 
+        Patient AS p
+    WHERE 
+        p.pat_id = input_pat_id; -- Changed to match the column name in the Patient table
+
+    -- Check if patient exists
+    IF patient_name IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Patient not found';
+    END IF;
+END //
+
+DELIMITER ;
+
