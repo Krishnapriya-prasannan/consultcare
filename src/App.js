@@ -19,6 +19,8 @@ import DocLeave from './Components/DoctorPage/DocComponents/docLeave';
 import DocPatient from './Components/DoctorPage/DocComponents/docPatient';
 import DocProfile from './Components/DoctorPage/DocComponents/docProfile';
 const App = () => {
+  const isAdmin = true;
+
   return (
     <Router>
       <Routes>
@@ -33,7 +35,7 @@ const App = () => {
         <Route path="/adminpage" element={<AdminPage />} />
         <Route path="/adminpage/appointment" element={<AdAppmt />} />
         <Route path="/adminpage/doctor" element={<AdDoc />} />
-        <Route path="/adminpage/leave" element={<AdLeave />} />
+        <Route path="/adminpage/leave" element={<AdLeave isAdmin={isAdmin} />} />
         <Route path="/adminpage/patient" element={<AdPatient />} />
         <Route path="/adminpage/profile" element={<AdProfile />} />
         <Route path="/doctorpage" element={<DoctorPage />} />
