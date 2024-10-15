@@ -10,7 +10,7 @@ const Login = () => {
   const [formData, setFormData] = useState({
     phoneNo: '',
     dob: '',
-    staffId: '',
+    staffUsername: '', // Changed from staffId to staffUsername
     staffPassword: '',
   });
   const [error, setError] = useState('');
@@ -23,30 +23,36 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const payload = isUser
+      ? { phoneNo: formData.phoneNo, dob: formData.dob }
+      : { staffUsername: formData.staffUsername, staffPassword: formData.staffPassword }; // Changed staffId to staffUsername
+
     try {
+      const endpoint = isUser
+        ? 'http://localhost:5000/api/login/patient'
+        : 'http://localhost:5000/api/login/staff';
+
+      const response = await axios.post(endpoint, payload);
+
       if (isUser) {
-        const response = await axios.post('http://localhost:5000/api/login/patient', {
-          phoneNo: formData.phoneNo,
-          dob: formData.dob,
-        });
-        const{patient_id} = response.data;
-        console.log('Patient logged in:', response.data);
-        localStorage.setItem('patient_id',patient_id);
+        const { patient_id } = response.data;
+        localStorage.setItem('patient_id', patient_id);
         navigate('/UserPage');
       } else {
-        const response = await axios.post('http://localhost:5000/api/login/staff', {
-          staffId: formData.staffId,
-          staffPassword: formData.staffPassword,
-        });
-        console.log('Staff logged in:', response.data);
-        navigate('/DoctorPage');
+        const { staffId, staffType, message } = response.data;
+
+        localStorage.setItem('staff_id', staffId);
+        localStorage.setItem('staff_type', staffType);
+
+        navigate(staffType === 'A' ? '/adminpage' : '/doctorpage');
       }
     } catch (error) {
       console.error('Error logging in:', error);
-      setError(error.response?.data.message || 'Login failed. Please try again.'); // Display error message
+      const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
+      setError(errorMessage);
     }
   };
-
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center">
@@ -82,13 +88,13 @@ const Login = () => {
           ) : (
             <>
               <div className="mb-4">
-                <label htmlFor="staffId" className="block text-gray-700">ID:</label>
+                <label htmlFor="staffUsername" className="block text-gray-700">Username:</label> {/* Changed from ID to Username */}
                 <input
                   type="text"
-                  id="staffId"
-                  name="staffId"
+                  id="staffUsername"
+                  name="staffUsername" // Changed from staffId to staffUsername
                   className="border rounded w-full py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#B08968]"
-                  placeholder="Enter your ID"
+                  placeholder="Enter your username"
                   required
                   onChange={handleChange}
                 />
@@ -126,4 +132,3 @@ const Login = () => {
 };
 
 export default Login;
-

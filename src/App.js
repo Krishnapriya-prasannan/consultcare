@@ -18,6 +18,7 @@ import DocAppmt from './Components/DoctorPage/DocComponents/docAppmt';
 import DocLeave from './Components/DoctorPage/DocComponents/docLeave';
 import DocPatient from './Components/DoctorPage/DocComponents/docPatient';
 import DocProfile from './Components/DoctorPage/DocComponents/docProfile';
+import Chart from './Components/DoctorPage/DocComponents/chart';
 const App = () => {
   const isAdmin = true;
 
@@ -43,7 +44,7 @@ const App = () => {
         <Route path="/doctorpage/leave" element={<DocLeave />} />
         <Route path="/doctorpage/patient" element={<DocPatient />} />
         <Route path="/doctorpage/profile" element={<DocProfile />} />
-        
+        <Route path="/doctorpage/patient/chart" element={<Chart />} />
       </Routes>
     </Router>
   );

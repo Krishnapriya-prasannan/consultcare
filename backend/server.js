@@ -3,6 +3,7 @@ const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const bcrypt = require('bcrypt');
 
 const app = express();
 const port = 5000;
@@ -21,18 +22,21 @@ const dbConfig = {
 if (process.env.DB_SOCKET_PATH) {
   dbConfig.socketPath = process.env.DB_SOCKET_PATH;
 }
+// Create the database connection pool
+const db = mysql.createPool(dbConfig);
 
-
-// Create the database connection
-const db = mysql.createConnection(dbConfig);
-
-db.connect((err) => {
+// Connection testing
+db.getConnection((err) => {
   if (err) {
     console.error('Error connecting to MySQL:', err);
     return;
   }
   console.log('Connected to MySQL database');
 });
+
+
+
+
 // POST /api/patients/signup
 app.post('/api/patients/signup', (req, res) => {
   const { pat_name, pat_dob, pat_adr, pat_ph_no, pat_email, pat_sex } = req.body;
@@ -170,29 +174,96 @@ app.get('/api/Retrievepatient/:id', (req, res) => {
   });
 });
 
+app.post('/api/login/staff', async (req, res) => { // Add async here
+    const { staffUsername, staffPassword } = req.body;
 
-// Staff Login API
-app.post('/api/login/staff', (req, res) => {
-  const { staffId, staffPassword } = req.body;
+    db.getConnection((err, connection) => {
+        if (err) {
+            console.error('Error getting connection:', err);
+            return res.status(500).json({ message: 'Error connecting to database' });
+        }
 
-  const query = 'CALL LoginStaff(?, ?, @staff_id, @message); SELECT @staff_id AS staff_id, @message AS message;';
-  
-  db.query(query, [staffId, staffPassword], (err, results) => {
-      if (err) {
-          console.error('Error executing procedure:', err);
-          return res.status(500).json({ message: 'Error logging in staff', error: err.message });
-      }
+        const callProcedure = "CALL LoginStaff(?)";
+        connection.query(callProcedure, [staffUsername], async (err) => { // Make this query callback async
+            if (err) {
+                console.error('Error executing procedure:', err);
+                connection.release();
+                return res.status(500).json({ message: 'Error logging in staff', error: err.message });
+            }
 
-      const staffIdResult = results[1][0].staff_id;
-      const message = results[1][0].message;
+            const outputQuery = "SELECT @staff_id AS staff_id, @staff_type AS staff_type, @message AS message";
+            connection.query(outputQuery, async (err, results) => { // Make this query callback async
+                connection.release();
+                if (err) {
+                    console.error('Error retrieving output parameters:', err);
+                    return res.status(500).json({ message: 'Error retrieving staff details', error: err.message });
+                }
 
-      if (!staffIdResult) {
-          return res.status(401).json({ message });
-      }
+                const staffIdResult = results[0].staff_id;
+                const staffTypeResult = results[0].staff_type;
+                const message = results[0].message;
 
-      res.status(200).json({ message, staffId: staffIdResult });
-  });
+                if (message === 'Account is locked.') {
+                    return res.status(401).json({ message });
+                }
+
+                if (message === 'Invalid credentials.') {
+                    return res.status(401).json({ message });
+                }
+
+                // Compare the password and check for status
+                connection.query("SELECT stf_pswd, stf_status FROM Staff WHERE stf_username = ?", [staffUsername], async (err, results) => { // Make this query callback async
+                    if (err) {
+                        console.error('Error fetching staff details:', err);
+                        return res.status(500).json({ message: 'Error fetching staff details' });
+                    }
+
+                    if (results.length === 0 || results[0].stf_status === 'L') {
+                        return res.status(401).json({ message: 'Account is locked or does not exist.' });
+                    }
+
+                    const { stf_pswd: storedPassword } = results[0];
+                    const passwordMatch = await bcrypt.compare(staffPassword, storedPassword); // This can now use await
+
+                    if (passwordMatch) {
+                        // If login is successful, send staff ID and type
+                        res.status(200).json({ message: 'Login successful.', staffId: staffIdResult, staffType: staffTypeResult });
+                    } else {
+                        res.status(401).json({ message: 'Invalid credentials.' });
+                    }
+                });
+            });
+        });
+    });
 });
+
+
+// Endpoint to get doctor details
+app.get('/api/doctor/:id', (req, res) => {
+    const doctorId = req.params.id;
+    db.query('CALL GetDoctorDetails(?)', [doctorId], (err, results) => {
+        if (err) {
+            return res.status(500).json({ message: 'Database error', error: err });
+        }
+        res.json(results[0][0]); // Return the first row from the result
+    });
+});
+
+// Endpoint to update doctor password
+app.post('/api/doctor/update-password', async (req, res) => {
+    const { doctorId, newPassword } = req.body;
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    db.query('CALL UpdateDoctorPassword(?, ?)', [doctorId, hashedPassword], (err) => {
+        if (err) {
+            return res.status(500).json({ message: 'Database error', error: err });
+        }
+        res.json({ message: 'Password updated successfully' });
+    });
+});
+
 
 
 // Start the server

@@ -1,9 +1,16 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const DocAppmt = ({ appointmentsData }) => {
+  const navigate = useNavigate();
 
   const addChart = (tokenNo) => {
     alert(`Adding chart for token number: ${tokenNo}`);
+    goToNewPage(); // Navigate to the new page after adding the chart
+  };
+
+  const goToNewPage = () => {
+    navigate('/doctorpage/patient/chart'); // Navigate to the new page
   };
 
   return (
@@ -32,7 +39,7 @@ const DocAppmt = ({ appointmentsData }) => {
                 <td className="p-3 text-center">{appointment.sex}</td>
                 <td className="p-3 text-center">
                   <button
-                    onClick={() => addChart(appointment.tokenNo)}
+                    onClick={() => addChart(appointment.tokenNo)}  // Properly handling the click
                     className="bg-[#7F4F24] hover:bg-[#7F5539] text-white font-bold py-2 px-4 rounded transition duration-300 transform hover:scale-105"
                   >
                     Add Chart

@@ -170,3 +170,55 @@ END //
 
 DELIMITER ;
 
+//staff login
+
+DELIMITER //
+
+CREATE PROCEDURE LoginStaff(IN staffUsername VARCHAR(255))
+BEGIN
+    DECLARE staff_pswd VARCHAR(255);
+    DECLARE staff_status CHAR(1);   -- Status will be 'A' or 'L'
+    DECLARE staff_type CHAR(1);     -- Staff type will be 'A' (Admin) or 'D' (Doctor)
+    DECLARE msg VARCHAR(255);
+
+    -- Fetch the staff password, status, and type
+    SELECT stf_pswd, stf_status, stf_type INTO staff_pswd, staff_status, staff_type
+    FROM Staff
+    WHERE stf_username = staffUsername;
+
+    -- Check if the staff exists and status is active
+    IF staff_pswd IS NULL THEN
+        SET msg = 'Invalid credentials.';
+    ELSEIF staff_status = 'L' THEN
+        SET msg = 'Account is locked.';
+    ELSEIF staff_status = 'A' THEN
+        SET msg = 'Login successful.';
+    END IF;
+
+    -- Set output parameters
+    SET @staff_type = staff_type;
+    SET @message = msg;
+END //
+
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE GetDoctorDetails(IN doctorId INT)
+BEGIN
+    SELECT stf_id, stf_name, stf_speciality, stf_email, stf_ph_no, 
+           stf_qualification, stf_experience, stf_sex, stf_img_path
+    FROM Staff
+    WHERE stf_id = doctorId;
+END //
+DELIMITER ;
+
+
+DELIMITER //
+CREATE PROCEDURE UpdateDoctorPassword(IN doctorId INT, IN newPassword VARCHAR(100))
+BEGIN
+    UPDATE Staff
+    SET stf_pswd = newPassword
+    WHERE stf_id = doctorId;
+END //
+DELIMITER ;
+
