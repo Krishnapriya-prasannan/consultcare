@@ -104,6 +104,8 @@ const Profile = () => {
           setInitialDetails(patientDetails);
           toggleEditMode();
         }
+      
+
       } catch (error) {
         console.error('Error updating patient details:', error);
         alert('Failed to update profile. Please try again.');
@@ -164,24 +166,25 @@ const Profile = () => {
           </div>
 
           <div className="col-span-1">
-            <label className="block font-medium text-gray-700">Sex:</label>
-            {isEditing ? (
-              <select
-                name="sex"
-                value={patientDetails.sex}
-                onChange={handleInputChange}
-                className={`mt-1 block w-full border ${errors.sex ? 'border-red-500' : 'border-gray-300'} rounded-md p-2`}
-              >
-                <option value="">Select</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
-            ) : (
-              <p className="mt-1 text-gray-600">{patientDetails.sex || 'N/A'}</p>
-            )}
-            {errors.sex && <p className="text-red-500 text-sm">{errors.sex}</p>}
-          </div>
+  <label className="block font-medium text-gray-700">Sex:</label>
+  {isEditing ? (
+    <select
+      name="sex"
+      value={patientDetails.sex}
+      onChange={handleInputChange}
+      className={`mt-1 block w-full border ${errors.sex ? 'border-red-500' : 'border-gray-300'} rounded-md p-2`}
+    >
+      <option value="">Select</option>
+      <option value="M">Male</option>
+      <option value="F">Female</option>
+      <option value="O">Others</option>
+    </select>
+  ) : (
+    <p className="mt-1 text-gray-600">{patientDetails.sex || 'N/A'}</p>
+  )}
+  {errors.sex && <p className="text-red-500 text-sm">{errors.sex}</p>}
+</div>
+
 
           <div className="col-span-1">
             <label className="block font-medium text-gray-700">Age:</label>

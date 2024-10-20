@@ -174,6 +174,190 @@ app.get('/api/Retrievepatient/:id', (req, res) => {
   });
 });
 
+
+app.get('/api/specialties', (req, res) => {
+  db.query('CALL GetAllSpecialties()', (error, results) => {
+    if (error) {
+      console.error('Error fetching specialties: ', error);
+      return res.status(500).json({ error: 'Database query failed' });
+    }
+
+    // results is an array, with the first element being the result set
+    const specialties = results[0].map(row => row.stf_speciality);
+    res.json(specialties);
+  });
+});
+
+app.get('/api/doctors/:specialty', (req, res) => {
+  const specialtyName = req.params.specialty; // Get the specialty from the URL parameters
+
+  db.query('CALL GetDoctorsBySpecialty(?)', [specialtyName], (error, results) => {
+    if (error) {
+      console.error('Error fetching doctors: ', error);
+      return res.status(500).json({ error: 'Database query failed' });
+    }
+
+    // results is an array, with the first element being the result set
+    const doctors = results[0].map(row => ({
+      id: row.stf_id,    // Assuming stf_id is the doctor's ID
+      name: row.stf_name  // Assuming stf_name is the doctor's name
+    }));
+
+    res.json(doctors); // Respond with the list of doctors
+  });
+});
+
+app.get('/api/available-dates/:doctorId', (req, res) => {
+  const doctorId = req.params.doctorId;
+
+  // Log the incoming request
+  console.log('Fetching available dates for doctor ID:', doctorId);
+
+  // Execute the stored procedure
+  db.query('CALL GetNextSevenAvailableDates(?);', [doctorId], (error, results) => {
+      if (error) {
+          console.error('Error executing query:', error);
+          return res.status(500).json({ error: 'Internal Server Error' });
+      }
+
+      // Access the results
+      const availableDates = results[0]; // The first result set contains the available dates
+
+      if (availableDates.length > 0) {
+          res.json({ available_dates: availableDates });
+      } else {
+          res.json({ message: 'No available dates found.' });
+      }
+  });
+});
+
+
+
+app.get('/api/available-slots/:doctorId/:date', (req, res) => {
+  const doctorId = parseInt(req.params.doctorId); // Get doctor ID from URL parameters
+  const selectedDate = req.params.date; // Get selected date from URL parameters
+
+  db.query('CALL ShowAvailableSlots(?, ?)', [doctorId, selectedDate], (error, results) => {
+    if (error) {
+      console.error('Error fetching available slots: ', error);
+      return res.status(500).json({ error: 'Database query failed' });
+    }
+
+    // results is an array, with the first element being the result set
+    const slots = results[0].map(row => ({
+      id: row.tok_id,               // Token ID
+      fromTime: row.tok_fr_time,    // Start time of the slot
+      toTime: row.tok_to_time,      // End time of the slot
+      tokenNumber: row.tok_no,       // Token number
+      status: row.tok_status         // Token status
+    }));
+
+    res.json(slots); // Respond with the list of available slots
+  });
+});
+
+app.post('/api/book-appointment', (req, res) => {
+  const { doctorId, patientId, appointmentDate, timeSlot, tokenNumber } = req.body;
+
+  // Log the incoming request
+  console.log('Booking appointment for Doctor ID:', doctorId, 'Patient ID:', patientId);
+
+  // Ensure required parameters are provided
+  if (!doctorId || !patientId || !appointmentDate || !timeSlot || !tokenNumber) {
+      return res.status(400).json({ error: 'All parameters are required' });
+  }
+
+  // Execute the stored procedure to book the appointment
+  db.query('CALL BookAppointment(?, ?, ?, ?, ?);', 
+      [doctorId, patientId, appointmentDate, timeSlot, tokenNumber], 
+      (error, results) => {
+          if (error) {
+              console.error('Error executing query:', error);
+              return res.status(500).json({ error: 'Internal Server Error' });
+          }
+
+          // If booking is successful, send a success response
+          res.json({ message: 'Appointment booked successfully!' });
+      }
+  );
+});
+
+app.get('/api/appointments/:patientId', (req, res) => {
+    const patientId = parseInt(req.params.patientId); // Get patient ID from URL parameters
+    const flag = parseInt(req.query.flag); // Get flag from the query string
+
+    // Check for valid flags: 1, 2, or 3
+    if (isNaN(flag) || (flag < 1 || flag > 3)) {
+        return res.status(400).json({ error: 'Invalid flag. Flag must be 1, 2, or 3.' });
+    }
+
+    // Call the stored procedure with the flag
+    db.query('CALL GetAppointmentsByPatientId(?, ?)', [patientId, flag], (error, results) => {
+        if (error) {
+            console.error('Error fetching appointments:', error);
+            return res.status(500).json({ error: 'Database query failed', message: error.message });
+        }
+
+        // Results is an array, with the first element being the result set
+        const appointments = results[0].map(row => ({
+            appointmentId: row.appointment_id,    // Appointment ID
+            appointmentDate: row.appointment_date, // Appointment date
+            timeSlot: row.time_slot,               // Time slot for the appointment
+            doctorName: row.doctor_name,           // Name of the doctor
+            tokenNumber: row.token_number,         // Token number
+            remarks: row.remarks,                  // Remarks associated with the appointment
+            status: row.status,                    // Status of the appointment
+        }));
+
+        res.json(appointments); // Respond with the list of appointments
+    });
+});
+
+
+
+app.put('/api/appointments/update/:id', (req, res) => {
+    const appointmentId = req.params.id; // Get the appointment ID from the URL parameters
+    const { doctorId, patientId, appointmentDate, timeSlot, tokenNumber } = req.body; // Extract details from request body
+
+    // Log the parameters
+    console.log('Updating appointment with parameters:', {
+        appointmentId,
+        doctorId,
+        patientId,
+        appointmentDate,
+        timeSlot,
+        tokenNumber
+    });
+
+    // SQL query to call the stored procedure
+    const query = `CALL UpdateAppointment(?, ?, ?, ?, ?, ?)`;
+
+    // Execute the stored procedure with the provided parameters
+    db.query(query, [appointmentId, doctorId, patientId, appointmentDate, timeSlot, tokenNumber], (err, results) => {
+        if (err) {
+            console.error('Error executing query:', err); // Log the error for debugging
+            if (err.sqlState === '45000') {
+                return res.status(400).json({ error: err.message }); // Return a 400 status for custom errors
+            }
+            return res.status(500).json({ error: 'Database error.' }); // Return a 500 status for general errors
+        }
+        return res.status(200).json({ message: 'Appointment updated successfully.', data: results }); // Success response
+    });
+});
+
+
+// DELETE /api/appointments/cancel/:id
+app.delete('/api/appointments/cancel/:appointmentId', (req, res) => {
+    const appointmentId = parseInt(req.params.appointmentId);
+    db.query('CALL CancelAppointment(?)', [appointmentId], (error, results) => {
+        if (error) {
+            console.error('Error cancelling appointment:', error);
+            return res.status(500).json({ error: 'Database query failed', message: error.message });
+        }
+        res.json({ message: 'Appointment cancelled successfully' });
+    });
+});
+  
 app.post('/api/login/staff', async (req, res) => { // Add async here
     const { staffUsername, staffPassword } = req.body;
 
@@ -234,6 +418,46 @@ app.post('/api/login/staff', async (req, res) => { // Add async here
                 });
             });
         });
+    });
+});
+
+
+app.get('/api/medicines/:appointmentId', (req, res) => {
+    const appointmentId = parseInt(req.params.appointmentId); // Get appointment ID from URL parameters
+
+    if (isNaN(appointmentId)) {
+        return res.status(400).json({ error: 'Invalid appointment ID' });
+    }
+
+    // Call the GetMedicinesByAppointmentId stored procedure
+    db.query('CALL GetMedicinesByAppointmentId(?)', [appointmentId], (error, results) => {
+        if (error) {
+            console.error('Error fetching medicines:', error);
+            return res.status(500).json({ error: 'Database query failed', message: error.message });
+        }
+
+        // Log the results from the stored procedure
+        console.log('Results from stored procedure:', results);
+
+        // results is an array, with the first element being the result set
+        const medicines = results[0].map(row => ({
+            medicineId: row.medicine_id,           // Use the correct field name
+            appointmentId: appointmentId,            // Use appointmentId passed in
+            medicineName: row.medicine_name,        // Use the correct field name
+            dosage: row.dosage,                     // Use the correct field name
+            duration: row.duration,                  // Use the correct field name
+            instructions: row.instruction,           // Use the correct field name
+            remarks: row.remarks                     // Use the correct field name
+        }));
+
+        console.log('Mapped medicines:', medicines); // Log the mapped medicines
+
+        // Check if any medicines were found
+        if (medicines.length === 0) {
+            return res.status(404).json({ message: 'No medicines found for this appointment' });
+        }
+
+        res.json(medicines); // Respond with the list of medicines
     });
 });
 
