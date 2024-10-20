@@ -48,3 +48,194 @@ try {
     # Handle error
     Write-Host "Error: " $_.Exception.Message
 }
+
+
+$uri = "http://localhost:5000/api/patients/update/1"  # Replace '6' with the actual patient ID
+$body = @{
+    pat_name  = "John Doe"
+    pat_dob   = "1990-01-01"
+    pat_adr   = "123 Main St"
+    pat_ph_no = "1234567890"
+    pat_email = "john.doe@example.com"
+    pat_sex   = "M"
+    pat_reg_no = $null
+}
+
+$response = Invoke-RestMethod -Uri $uri -Method Put -Body ($body | ConvertTo-Json) -ContentType "application/json"
+$response
+
+
+$doctorId = "2"
+$uri = "http://localhost:5000/api/available-dates/$doctorId"
+$response = Invoke-RestMethod -Uri $uri -Method Get
+$response | ConvertTo-Json -Depth 10
+
+
+$uri = "http://localhost:5000/api/book-appointment"
+$body = @{
+    doctorId = 1
+    patientId = 2
+    appointmentDate = "2024-10-14"
+    timeSlot = "10:00:00 - 10:30:00"
+    tokenNumber = 1
+}
+
+# Convert the body to JSON
+$jsonBody = $body | ConvertTo-Json
+
+# Send the POST request
+$response = Invoke-RestMethod -Uri $uri -Method Post -Body $jsonBody -ContentType "application/json"
+
+# Output the response
+$response
+
+# Define the API URI for viewing appointments
+$patientId = 1  # Replace with the actual patient ID you want to query
+$uri = "http://localhost:5000/api/appointments/$patientId"
+
+# Send the GET request
+$response = Invoke-RestMethod -Uri $uri -Method Get -ContentType "application/json"
+
+# Output the response
+$response
+
+# Define the API endpoint and request body
+$apiUrl = "http://localhost:5000/api/appointments/cancel/25"  # Use the appointment ID directly in the URL
+$headers = @{ "Content-Type" = "application/json" }
+
+# Send the DELETE request to the cancel appointment API
+$response = Invoke-RestMethod -Uri $apiUrl -Method Delete -Headers $headers
+
+# Output the response
+$response
+
+# Define the API endpoint and request body
+$apiUrl = "http://localhost:5000/api/appointments/update" # Update the URL
+$headers = @{ "Content-Type" = "application/json" }
+
+# Define the appointment details
+$body = @{
+    appointmentId = 24 # Change this to the ID of the appointment you want to update
+    newAppointmentDate = "2024-10-19" # Change this to the new date
+    newTimeSlot = "10:00:00" # Change this to the new time slot
+} | ConvertTo-Json
+
+# Send the POST request to the update appointment API
+$response = Invoke-RestMethod -Uri $apiUrl -Method Post -Body $body -Headers $headers
+
+# Output the response
+$response
+
+# Define the API endpoint and request body
+$apiUrl = "http://localhost:5000/api/appointments/update"
+$headers = @{ "Content-Type" = "application/json" }
+
+# Define the appointment details
+$body = @{
+    appointmentId = 24
+    newAppointmentDate = "2024-10-19"
+    newTimeSlot = "10:00:00"
+} | ConvertTo-Json
+
+# Send the POST request to the update appointment API
+$response = Invoke-RestMethod -Uri $apiUrl -Method Post -Body $body -Headers $headers
+
+# Output the response
+$response
+
+
+# Define the API endpoint and request body
+$apiUrl = "http://localhost:5000/api/appointments/update"
+$headers = @{ "Content-Type" = "application/json" }
+
+# Define the appointment details
+$body = @{
+    appointmentId = 24
+    newAppointmentDate = "2024-10-16"
+    newTimeSlot = "17:00:00"
+} | ConvertTo-Json
+
+# Send the POST request to the update appointment API
+$response = Invoke-RestMethod -Uri $apiUrl -Method Post -Body $body -Headers $headers
+
+# Output the response
+$response
+
+# Define the API endpoint (appointmentId should be replaced with the actual ID)
+$appointmentId = 24
+$apiUrl = "http://localhost:5000/api/appointments/cancel/$appointmentId"
+
+# Send the DELETE request to the cancel appointment API
+$response = Invoke-RestMethod -Uri $apiUrl -Method Delete
+
+# Output the response
+$response
+
+
+
+# Define the API endpoint and request body
+$apiUrl = "http://localhost:5000/api/appointments/update"
+$headers = @{ "Content-Type" = "application/json" }
+
+# Define the appointment details to be updated
+$body = @{
+    appointmentId = 19
+    doctorId = 5
+    patientId = 2
+    appointmentDate = "2024-10-18"
+    timeSlot = "12:45:00"
+    tokenNumber = 45
+} | ConvertTo-Json
+
+# Send the POST request to the update appointment API
+$response = Invoke-RestMethod -Uri $apiUrl -Method Post -Body $body -Headers $headers
+
+# Output the response
+$response
+
+
+
+# Define the API URL
+$apiUrl = "http://localhost:5000/api/login/staff"
+
+# Define the login credentials
+$credentials = @{
+    staffUsername = "johndoe"
+    staffPassword = "password123"
+}
+
+# Convert credentials to JSON
+$jsonBody = $credentials | ConvertTo-Json
+
+# Send the POST request
+$response = Invoke-RestMethod -Uri $apiUrl -Method Post -Body $jsonBody -ContentType "application/json"
+
+# Display the response
+$response
+
+
+# Define the API endpoint URL
+$apiUrl = "http://localhost:5000/api/appointments/update/20"  # Replace 40 with the actual appointment ID you want to update
+
+# Create the body for the request
+$body = @{
+    doctorId = 2
+    patientId = 2
+    appointmentDate = "2024-10-21 18:30:00"  # Change to DATETIME format
+    timeSlot = "09:00:00"
+    tokenNumber = 5
+}
+
+# Convert the body to JSON format
+$jsonBody = $body | ConvertTo-Json
+
+# Send the PUT request
+$response = Invoke-RestMethod -Uri $apiUrl -Method Put -Body $jsonBody -ContentType "application/json"
+
+# Output the response
+$response
+
+
+
+
+

@@ -33,6 +33,7 @@ Create Table Staff(
     stf_img_path Varchar(60),
     stf_pswd Varchar(100) Not Null,
     stf_status Varchar(1) Not Null,
+    stf_username Varchar(60) Not Null,
     Primary Key(stf_id)   
 );
 
@@ -116,6 +117,7 @@ Create Table holiday (
     hol_stf_id Int Not Null,
     hol_date Date Not Null,
     hol_type Varchar(3) Not Null,
+    hol_status Varchar(20),
     Primary Key(hol_id),
     Foreign Key(hol_stf_id) References staff(stf_id)
 );
