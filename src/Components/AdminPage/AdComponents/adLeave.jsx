@@ -259,7 +259,7 @@ const AdminLeave = () => {
               >
                 <option value="">Select Leave Type</option>
                 <option value="FD">Full Day</option>
-                <option value="AHD">Half Day Forenoon</option>
+                <option value="MHD">Half Day Forenoon</option>
                 <option value="EHD">Half Day Afternoon</option>
               </select>
             </div>
@@ -351,7 +351,7 @@ const AdminLeave = () => {
                   >
                     <option value="" disabled>Select type</option>
                     <option value="FD">Full Day</option>
-                    <option value="AHD">Half Day Forenoon</option>
+                    <option value="MHD">Half Day Forenoon</option>
                     <option value="EHD">Half Day Afternoon</option>
                   </select>
                 </div>
