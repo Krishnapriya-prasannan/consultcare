@@ -11,17 +11,17 @@ import DoctorPage from './Components/docStruct';
 import AdminPage from './Components/adStruct';
 import AdAppmt from './Components/AdminPage/AdComponents/adAppmt';
 import AdDoc from './Components/AdminPage/AdComponents/adDoctor';
-import AdLeave from './Components/AdminPage/AdComponents/adLeave';
+import AdminLeave from './Components/AdminPage/AdComponents/adLeave';
 import AdPatient from './Components/AdminPage/AdComponents/adPatient';
 import AdProfile from './Components/AdminPage/AdComponents/adProfile';
 import DocAppmt from './Components/DoctorPage/DocComponents/docAppmt';
 import DocLeave from './Components/DoctorPage/DocComponents/docLeave';
 import DocPatient from './Components/DoctorPage/DocComponents/docPatient';
 import DocProfile from './Components/DoctorPage/DocComponents/docProfile';
-import Chart from './Components/DoctorPage/DocComponents/chart';
+import DoctorView from './Components/DoctorPage/DocComponents/chart';
+import PatientHistory from './Components/DoctorPage/DocComponents/history';
 const App = () => {
-  const isAdmin = true;
-
+  
   return (
     <Router>
       <Routes>
@@ -36,7 +36,7 @@ const App = () => {
         <Route path="/adminpage" element={<AdminPage />} />
         <Route path="/adminpage/appointment" element={<AdAppmt />} />
         <Route path="/adminpage/doctor" element={<AdDoc />} />
-        <Route path="/adminpage/leave" element={<AdLeave isAdmin={isAdmin} />} />
+        <Route path="/adminpage/leave" element={<AdminLeave />} />
         <Route path="/adminpage/patient" element={<AdPatient />} />
         <Route path="/adminpage/profile" element={<AdProfile />} />
         <Route path="/doctorpage" element={<DoctorPage />} />
@@ -44,7 +44,9 @@ const App = () => {
         <Route path="/doctorpage/leave" element={<DocLeave />} />
         <Route path="/doctorpage/patient" element={<DocPatient />} />
         <Route path="/doctorpage/profile" element={<DocProfile />} />
-        <Route path="/doctorpage/patient/chart" element={<Chart />} />
+        <Route path="/doctorpage/patient/history" element={<PatientHistory />} />
+        <Route path="/doctorpage/appointment_schedule/chart" element={<DoctorView />} />
+
       </Routes>
     </Router>
   );

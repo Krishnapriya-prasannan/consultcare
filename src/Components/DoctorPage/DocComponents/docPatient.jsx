@@ -1,12 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
-const DocPatient = ({ patientsData }) => {
+const DocPatient = () => {
   const navigate = useNavigate();
 
   // Search-related state
+  const [patientsData, setPatientsData] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('name');
+  const staffId = localStorage.getItem('staff_id');
+
+  useEffect(() => {
+    // Fetch patients data when component mounts
+    const fetchPatients = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/api/patients/${staffId}`);
+        setPatientsData(response.data);
+      } catch (error) {
+        console.error("Error fetching patients data:", error);
+      }
+    };
+
+    fetchPatients();
+  }, [staffId]);
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
@@ -15,6 +32,8 @@ const DocPatient = ({ patientsData }) => {
   const handleFilterChange = (e) => {
     setFilterType(e.target.value);
   };
+  
+
 
   // Filtering patients based on search and filter type
   const filteredPatients = patientsData?.filter((patient) => {
@@ -23,13 +42,14 @@ const DocPatient = ({ patientsData }) => {
     } else if (filterType === 'regNo') {
       return patient.regNo.includes(searchQuery);
     } else if (filterType === 'phoneNumber') {
-      return patient.phoneNumber.includes(searchQuery);
+      return patient.phoneNumber.includes(searchQuery); // Updated
     }
     return false;
   });
 
   const viewPatientHistory = (regNo) => {
-    navigate(`/patient-history/${regNo}`);
+    localStorage.setItem('regno', regNo);
+    navigate(`/doctorpage/patient/history`);
   };
 
   return (
@@ -51,7 +71,7 @@ const DocPatient = ({ patientsData }) => {
         >
           <option value="name">Name</option>
           <option value="regNo">Registration Number</option>
-          <option value="phoneNumber">Phone Number</option>
+          <option value="phoneNumber">Phone Number</option> {/* Updated */}
         </select>
       </div>
 
@@ -62,6 +82,7 @@ const DocPatient = ({ patientsData }) => {
             <th className="p-2 text-left">Name</th>
             <th className="p-2 text-left">Age</th>
             <th className="p-2 text-left">Sex</th>
+            <th className="p-2 text-left">Phone Number</th> {/* Updated */}
             <th className="p-2 text-left">Actions</th>
           </tr>
         </thead>
@@ -72,6 +93,7 @@ const DocPatient = ({ patientsData }) => {
               <td className="p-2 text-left border">{patient.name}</td>
               <td className="p-2 text-center border">{patient.age}</td>
               <td className="p-2 text-center border">{patient.sex}</td>
+              <td className="p-2 text-center border">{patient.phoneNumber}</td> {/* Updated */}
               <td className="p-2 text-center border">
                 <button
                   onClick={() => viewPatientHistory(patient.regNo)}

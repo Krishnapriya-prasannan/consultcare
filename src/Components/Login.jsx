@@ -38,6 +38,7 @@ const Login = () => {
       if (isUser) {
         const { patient_id } = response.data;
         localStorage.setItem('patient_id', patient_id);
+
         navigate('/UserPage');
       } else {
         const { staffId, staffType, message } = response.data;

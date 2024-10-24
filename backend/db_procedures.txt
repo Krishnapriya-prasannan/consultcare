@@ -205,8 +205,8 @@ DELIMITER ;
 DELIMITER //
 CREATE PROCEDURE GetDoctorDetails(IN doctorId INT)
 BEGIN
-    SELECT stf_id, stf_name, stf_speciality, stf_email, stf_ph_no, 
-           stf_qualification, stf_experience, stf_sex, stf_img_path
+    SELECT stf_id, stf_name,stf_username, stf_speciality, stf_email, stf_ph_no, 
+           stf_qualification, stf_experience, stf_sex, stf_img_path,stf_pswd
     FROM Staff
     WHERE stf_id = doctorId;
 END //
@@ -222,3 +222,245 @@ BEGIN
 END //
 DELIMITER ;
 
+DELIMITER //
+CREATE PROCEDURE GetAdminDetails(IN adminId INT)
+BEGIN
+    SELECT stf_id, stf_name,stf_username, stf_speciality, stf_email, stf_ph_no, 
+           stf_qualification, stf_experience, stf_sex, stf_img_path,stf_pswd
+    FROM Staff
+    WHERE stf_id = adminId;
+END //
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE updateAdminDetails(
+    IN adminId INT,
+    IN adminName VARCHAR(60),
+    IN adminUsername VARCHAR(50),
+    IN adminSex VARCHAR(1),
+    IN adminEmail VARCHAR(60),
+    IN adminPhoneNo VARCHAR(15),
+    IN adminSpeciality VARCHAR(50),
+    IN adminPassword VARCHAR(100),
+    IN adminExperience VARCHAR(500),
+    IN adminQualification VARCHAR(100)
+)
+BEGIN
+    UPDATE Staff
+    SET stf_name = adminName,
+        stf_username = adminUsername,
+        stf_sex = adminSex,
+        stf_email = adminEmail,
+        stf_ph_no = adminPhoneNo,
+        stf_speciality = adminSpeciality,
+        stf_pswd = adminPassword,
+        stf_experience = adminExperience,
+        stf_qualification = adminQualification
+    WHERE stf_id = adminId;
+END //
+
+DELIMITER ;
+
+DELIMITER //
+
+CREATE PROCEDURE GetPatientsByDoctor(IN staff_id INT)
+BEGIN
+    SELECT p.pat_reg_no AS regNo,
+           p.pat_name AS name,
+           TIMESTAMPDIFF(YEAR, p.pat_dob, CURDATE()) AS age,
+           p.pat_sex AS sex,
+           p.pat_ph_no AS phoneNumber
+    FROM Patient p
+    JOIN Appointment a ON p.pat_id = a.appt_pat_id
+    WHERE a.appt_stf_id = staff_id 
+    AND p.pat_status = 'A'
+    GROUP BY p.pat_id;
+END //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE GetTodayAppointments(IN staffId INT)
+BEGIN
+    SELECT 
+        a.appt_tok_no AS tokenNo,
+        p.pat_reg_no AS regNo,
+        p.pat_name AS name,
+        YEAR(CURDATE()) - YEAR(p.pat_dob) AS age,
+        p.pat_sex AS sex
+    FROM 
+        Appointment a
+    JOIN 
+        Patient p ON a.appt_pat_id = p.pat_id
+    WHERE 
+        a.appt_stf_id = staffId 
+        AND a.appt_date = CURDATE() 
+        AND a.appt_status = 'B'
+        AND p.pat_status = 'A'
+    ORDER BY 
+        a.appt_tok_no;
+END //
+
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE CreateLeave(
+    IN p_stf_id INT,
+    IN p_hol_date DATE,
+    IN p_hol_type VARCHAR(3),
+    IN p_hol_reason VARCHAR(200)
+)
+BEGIN
+    INSERT INTO Holiday (hol_stf_id, hol_date, hol_type, hol_reason, hol_status) 
+    VALUES (p_stf_id, p_hol_date, p_hol_type, p_hol_reason, 'W');
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE GetLeaveHistory(
+    IN p_stf_id INT
+)
+BEGIN
+    SELECT * FROM Holiday WHERE hol_stf_id = p_stf_id;
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE UpdateLeave(
+    IN p_hol_id INT,
+    IN p_hol_type VARCHAR(3),
+    IN p_hol_date DATE,
+    IN p_hol_reason VARCHAR(200)
+)
+BEGIN
+    UPDATE Holiday
+    SET hol_type = p_hol_type, hol_date = p_hol_date, hol_reason = p_hol_reason, hol_status = 'W'
+    WHERE hol_id = p_hol_id;
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE DeleteLeave(
+    IN p_hol_id INT
+)
+BEGIN
+    DELETE FROM Holiday WHERE hol_id = p_hol_id;
+END //
+DELIMITER ;
+ 
+
+ DELIMITER //
+CREATE PROCEDURE GetAllLeaves()
+BEGIN
+    SELECT h.hol_id, h.hol_date, h.hol_type, h.hol_reason, h.hol_status, s.stf_name
+    FROM Holiday h
+    JOIN Staff s ON h.hol_stf_id = s.stf_id;
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE ApproveRejectLeave(
+    IN p_hol_id INT,
+    IN p_status VARCHAR(10)
+)
+BEGIN
+    UPDATE Holiday
+    SET hol_status = p_status
+    WHERE hol_id = p_hol_id;
+END //
+DELIMITER ;
+
+DELIMITER //
+
+CREATE PROCEDURE GetLeavesByStatus(IN leaveStatus VARCHAR(20))
+BEGIN
+  SELECT h.hol_id, h.hol_date, h.hol_type, h.hol_reason, h.hol_status, s.stf_name
+    FROM Holiday h
+    JOIN Staff s ON h.hol_stf_id = s.stf_id WHERE h.hol_status = leaveStatus;
+END //
+
+DELIMITER ;
+
+
+
+DELIMITER //
+
+CREATE PROCEDURE AddNewChart(
+    IN patientRegNo VARCHAR(10),
+    IN doctorId INT,
+    IN appointmentDate DATE,
+    IN patientCondition TEXT,
+    IN diagnosis TEXT,
+    IN remarks TEXT,
+    IN medName VARCHAR(100),
+    IN medDosage VARCHAR(50),
+    IN medDuration VARCHAR(30),
+    IN medInstruction TINYTEXT,
+    IN medRemarks TINYTEXT
+)
+BEGIN
+    DECLARE new_cons_id INT;
+    DECLARE patientId INT;
+    DECLARE apptId INT;
+
+    -- Get patient ID from the Patient table based on the patient registration number
+    SELECT pat_id INTO patientId 
+    FROM Patient 
+    WHERE pat_reg_no = patientRegNo;
+
+    -- Check if the appointment exists
+    SELECT appt_id INTO apptId
+    FROM Appointment 
+    WHERE appt_date = appointmentDate 
+      AND appt_pat_id = patientId 
+      AND appt_stf_id = doctorId
+    LIMIT 1;
+
+    -- Debug: Check if appointment exists
+    IF apptId IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Appointment does not exist';
+    END IF;
+
+    -- Check if a consultation already exists for this appointment
+    SELECT cons_id INTO new_cons_id
+    FROM Consultation
+    WHERE cons_appt_id = apptId
+    LIMIT 1;
+
+    -- If no consultation exists, insert a new one
+    IF new_cons_id IS NULL THEN
+        INSERT INTO Consultation (cons_appt_id, cons_stf_id, cons_pat_id, cons_pat_condition, cons_diagnosis, cons_remarks)
+        VALUES (apptId, doctorId, patientId, patientCondition, diagnosis, remarks);
+        
+        -- Get the last inserted consultation ID
+        SET new_cons_id = LAST_INSERT_ID();
+    END IF;
+
+    -- Insert into Medication table, associating with the existing or newly created consultation
+    INSERT INTO Medication (med_cons_id, med_appt_id, med_name, med_dosage, med_duration, med_instruction, med_remarks)
+    VALUES (new_cons_id, apptId, medName, medDosage, medDuration, medInstruction, medRemarks);
+END //
+
+DELIMITER ;
+
+
+
+DELIMITER //
+
+CREATE TRIGGER after_consultation_insert
+AFTER INSERT ON Consultation
+FOR EACH ROW
+BEGIN
+    -- Update the appointment status from 'B' to 'F' for the corresponding appointment
+    UPDATE Appointment
+    SET appt_status = 'F'
+    WHERE appt_id = NEW.cons_appt_id AND appt_status = 'B';
+END;
+
+//
+
+DELIMITER ;

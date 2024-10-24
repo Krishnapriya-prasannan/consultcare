@@ -422,46 +422,6 @@ app.post('/api/login/staff', async (req, res) => { // Add async here
 });
 
 
-app.get('/api/medicines/:appointmentId', (req, res) => {
-    const appointmentId = parseInt(req.params.appointmentId); // Get appointment ID from URL parameters
-
-    if (isNaN(appointmentId)) {
-        return res.status(400).json({ error: 'Invalid appointment ID' });
-    }
-
-    // Call the GetMedicinesByAppointmentId stored procedure
-    db.query('CALL GetMedicinesByAppointmentId(?)', [appointmentId], (error, results) => {
-        if (error) {
-            console.error('Error fetching medicines:', error);
-            return res.status(500).json({ error: 'Database query failed', message: error.message });
-        }
-
-        // Log the results from the stored procedure
-        console.log('Results from stored procedure:', results);
-
-        // results is an array, with the first element being the result set
-        const medicines = results[0].map(row => ({
-            medicineId: row.medicine_id,           // Use the correct field name
-            appointmentId: appointmentId,            // Use appointmentId passed in
-            medicineName: row.medicine_name,        // Use the correct field name
-            dosage: row.dosage,                     // Use the correct field name
-            duration: row.duration,                  // Use the correct field name
-            instructions: row.instruction,           // Use the correct field name
-            remarks: row.remarks                     // Use the correct field name
-        }));
-
-        console.log('Mapped medicines:', medicines); // Log the mapped medicines
-
-        // Check if any medicines were found
-        if (medicines.length === 0) {
-            return res.status(404).json({ message: 'No medicines found for this appointment' });
-        }
-
-        res.json(medicines); // Respond with the list of medicines
-    });
-});
-
-
 // Endpoint to get doctor details
 app.get('/api/doctor/:id', (req, res) => {
     const doctorId = req.params.id;
@@ -487,6 +447,342 @@ app.post('/api/doctor/update-password', async (req, res) => {
         res.json({ message: 'Password updated successfully' });
     });
 });
+
+// Get Admin Details
+app.get('/api/admin/:id', (req, res) => {
+    const adminId = req.params.id;
+    db.query('CALL GetAdminDetails(?)', [adminId], (err, results) => {
+        if (err) {
+            return res.status(500).json({ message: 'Database error', error: err });
+        }
+        res.json(results[0][0]); // Return the first row from the result
+    });
+});
+
+app.put('/api/admin/update/:id', async (req, res) => {
+    const adminId = req.params.id;
+    const {
+      stf_name,
+      stf_username,
+      stf_sex,
+      stf_speciality,
+      stf_experience,
+      stf_qualification,
+      stf_email,
+      stf_ph_no,
+      stf_pswd, // Password to be updated
+    } = req.body;
+  
+    // Initialize values array for the query
+    const values = [
+      stf_name,
+      stf_username,
+      stf_sex,
+      stf_speciality,
+      stf_experience,
+      stf_qualification,
+      stf_email,
+      stf_ph_no,
+    ];
+  
+    // Check if a new password is provided
+    if (stf_pswd) {
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(stf_pswd, 10);
+      values.push(hashedPassword); // Add the hashed password to the values array
+    } else {
+      // If no new password is provided, do not update the password field
+      values.push(null); // Placeholder for password if not updating
+    }
+    values.push(adminId); // Add adminId at the end of values array
+  
+    // Update admin details, with condition to handle password
+    const sql = `
+      UPDATE Staff
+      SET
+        stf_name = ?,
+        stf_username = ?,
+        stf_sex = ?,
+        stf_speciality = ?,
+        stf_experience = ?,
+        stf_qualification = ?,
+        stf_email = ?,
+        stf_ph_no = ?,
+        stf_pswd = COALESCE(?, stf_pswd) -- Use COALESCE to keep existing password if not updating
+      WHERE
+        stf_id = ?`;
+  
+    db.query(sql, values, (err, result) => {
+      if (err) {
+        console.error('Error updating admin details:', err);
+        return res.status(500).json({ message: 'Failed to update admin details' });
+      }
+      return res.status(200).json({ message: 'Admin details updated successfully' });
+    });
+  });
+
+
+
+
+// API to get patients by doctor's ID
+app.get('/api/patients/:staffId', (req, res) => {
+    const staffId = req.params.staffId;
+  
+    db.query('CALL GetPatientsByDoctor(?)', [staffId], (err, results) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(results[0]); // Results of the procedure
+    });
+  });
+
+ // Endpoint to get today's appointments for a doctor
+app.get('/api/appointment/:staffId', (req, res) => {
+  const staffId = req.params.staffId;
+
+  db.query('CALL GetTodayAppointments(?)', [staffId], (error, results) => {
+    if (error) {
+      console.error("Error fetching appointments:", error);
+      return res.status(500).json({ error: 'Error fetching appointments' });
+    }
+    res.json(results[0]); // results[0] contains the result set
+  });
+});
+
+
+ 
+// Route for applying leave
+app.post('/api/leave', (req, res) => {
+    const { hol_stf_id, hol_type, hol_date, hol_reason, hol_status } = req.body;
+
+    // Input validation
+    if (!hol_stf_id || !hol_type || !hol_date || !hol_reason) {
+        return res.status(400).json({ error: 'All fields are required.' });
+    }
+
+    // SQL query to insert a new leave request
+    const sql = "INSERT INTO Holiday (hol_stf_id, hol_type, hol_date, hol_reason, hol_status) VALUES (?, ?, ?, ?, ?)";
+    const values = [hol_stf_id, hol_type, hol_date, hol_reason, hol_status];
+
+    db.query(sql, values, (error, results) => {
+        if (error) {
+            // Log the error to help identify the issue
+            console.error("Database error:", error);
+            return res.status(500).json({ error: 'An error occurred while processing your request.' });
+        }
+        res.status(201).json({ message: 'Leave applied successfully!', id: results.insertId });
+    });
+});
+
+
+app.post('/api/updateLeaveStatus', (req, res) => {
+  const { holId, hol_type, hol_date, hol_reason, hol_status } = req.body; // Ensure holId is extracted
+
+  const query = 'UPDATE Holiday SET hol_type = ?, hol_date = ?, hol_reason = ?, hol_status = ? WHERE hol_id = ?';
+  const values = [hol_type, hol_date, hol_reason, hol_status, holId]; // Include all values in the correct order
+
+  db.query(query, values, (error, results) => {
+    if (error) {
+      console.error('Error updating leave status:', error);
+      return res.status(500).json({ success: false, message: 'Database error' });
+    }
+
+    if (results.affectedRows === 0) {
+      // Handle the case where no rows were updated
+      return res.status(404).json({ success: false, message: 'Leave not found' });
+    }
+
+    return res.status(200).json({ success: true });
+  });
+});
+
+  
+  // Route for updating leave
+app.put('/api/leave/:id', (req, res) => {
+  const { id } = req.params; // Get the leave ID from the URL parameter
+  const { hol_type, hol_date, hol_reason, hol_status } = req.body;
+
+
+  const sql = 'UPDATE Holiday SET hol_type = ?, hol_date = ?, hol_reason = ?, hol_status = ? WHERE hol_id = ?';
+  db.query(sql, [hol_type, hol_date, hol_reason, hol_status, id], (err, result) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).send('Database error');
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).send('Leave not found');
+    }
+    res.status(200).send('Leave updated successfully!');
+  });
+});
+
+  
+  // API to delete leave
+  app.delete('/api/leave/:id', (req, res) => {
+    const leaveId = req.params.id;
+
+    // SQL query to delete the leave application
+    const sql = "DELETE FROM Holiday WHERE hol_id = ?";
+    db.query(sql, [leaveId], (error, results) => {
+        if (error) {
+            console.error("Database error:", error);
+            return res.status(500).json({ error: 'An error occurred while processing your request.' });
+        }
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ error: 'Leave application not found.' });
+        }
+        res.status(204).send(); // No content
+    });
+});
+
+  // API to get leave history
+  app.get('/api/leave/:staff_id', (req, res) => {
+    const { staff_id } = req.params;
+    db.query('CALL GetLeaveHistory(?)', [staff_id], (error, results) => {
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      res.status(200).json(results[0]); // results[0] contains the result set
+    });
+  });
+  
+// Get All Leaves with optional status filter
+app.get('/api/leave', (req, res) => {
+  const status = req.query.status; // Get the status from the query parameters
+  let sql = 'CALL GetAllLeaves()'; // Default to getting all leaves
+
+  // If a status is provided, modify the query
+  if (status) {
+    sql = 'CALL GetLeavesByStatus(?)'; // You should create this stored procedure to handle the filtering
+  }
+
+  db.query(sql, [status], (err, results) => {
+      if (err) return res.status(500).send(err);
+      res.json(results[0]);
+  });
+});
+
+
+// Approve or Reject a Leave Application
+app.put('/api/leaves/:id', (req, res) => {
+  const { status } = req.body;
+  const leaveId = req.params.id; // Get leave ID from URL
+
+  db.query('CALL ApproveRejectLeave(?, ?)', [leaveId, status], (err) => {
+      if (err) return res.status(500).send(err);
+      res.send(`Leave application ${status === 'A' ? 'A' : 'R'}.`);
+  });
+});
+
+
+
+app.get('/api/patient/:patientId/history', (req, res) => {
+  const patientId = req.params.patientId;
+  const query = 'CALL GetConsultationHistory(?)';
+
+  connection.query(query, [patientId], (error, results) => {
+      if (error) {
+          return res.status(500).send('Error fetching history');
+      }
+      res.json(results[0]); // Return the consultation and medication history
+  });
+});
+
+
+app.post('/api/addNewChart', async (req, res) => {
+  const {
+    patientRegNo,
+    doctorId,
+    appointmentDate,
+    patientCondition,
+    diagnosis,
+    remarks,
+    medicationEntries // expecting an array of medication entries
+  } = req.body;
+
+  console.log('Appointment Date:', appointmentDate);
+
+  const query = `CALL AddNewChart(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+  try {
+    // Loop through the medication entries and call the stored procedure for each
+    for (const med of medicationEntries) {
+      const params = [
+        patientRegNo,
+        doctorId,
+        appointmentDate,
+        patientCondition,
+        diagnosis,
+        remarks,
+        med.name,
+        med.dosage,
+        med.duration,
+        med.instruction,
+        med.remarks
+      ];
+
+      await new Promise((resolve, reject) => {
+        db.query(query, params, (error, results) => {
+          if (error) {
+            console.error('Error executing query:', error);
+            return reject(error);
+          }
+          resolve(results);
+        });
+      });
+    }
+    res.status(200).send('Charts successfully saved!');
+  } catch (error) {
+    console.error('Error saving data:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Add this to your server.js or appropriate routes file
+app.get('/api/patientHistory/:regNo', (req, res) => {
+  const { regNo } = req.params;
+
+  const query = `
+    SELECT 
+        c.cons_id, c.cons_pat_condition, c.cons_diagnosis, c.cons_remarks, 
+        c.cons_appt_id, c.cons_stf_id,
+        a.appt_date,  -- Appointment date
+        s.stf_name,   -- Staff name
+        m.med_name, m.med_dosage, m.med_duration, m.med_instruction, m.med_remarks
+    FROM Consultation c
+    LEFT JOIN Medication m ON c.cons_id = m.med_cons_id
+    LEFT JOIN Appointment a ON c.cons_appt_id = a.appt_id  -- Join with the Appointment table
+    LEFT JOIN Staff s ON c.cons_stf_id = s.stf_id  -- Join with the Staff table
+    WHERE c.cons_pat_id = (SELECT pat_id FROM Patient WHERE pat_reg_no = ?)
+      AND a.appt_status = 'F'  -- Only include full day appointments
+  `;
+
+  db.query(query, [regNo], (error, results) => {
+      if (error) {
+          console.error('Error fetching patient history:', error);
+          return res.status(500).send('Internal Server Error');
+      }
+      res.json(results);
+  });
+});
+
+
+app.get('/api/patientsId/:regNo', (req, res) => {
+  const regNo = req.query.regNo;
+  // Query the database to find the patient ID based on regNo
+  // Example query
+  connection.query('SELECT patientId FROM Patients WHERE regNo = ?', [regNo], (error, results) => {
+      if (error) {
+          return res.status(500).json({ error: 'Database query failed.' });
+      }
+      if (results.length > 0) {
+          return res.json({ patientId: results[0].patientId });
+      } else {
+          return res.status(404).json({ error: 'Patient not found.' });
+      }
+  });
+});
+
 
 
 

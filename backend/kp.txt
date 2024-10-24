@@ -1,0 +1,1168 @@
+//login patient 
+
+DELIMITER //
+
+CREATE PROCEDURE LoginUser(
+    IN input_phone_no VARCHAR(15),
+    IN input_dob DATE,
+    OUT output_patient_id INT,
+    OUT output_message VARCHAR(255)
+)
+BEGIN
+    DECLARE user_exists INT;
+    DECLARE patient_status VARCHAR(10);
+
+    -- Check if the user exists with the provided phone number and date of birth
+    SELECT COUNT(*) INTO user_exists
+    FROM Patient
+    WHERE pat_ph_no = input_phone_no AND pat_dob = input_dob;
+
+    -- If user exists, retrieve the patient ID and status
+    IF user_exists = 1 THEN
+        SELECT pat_id, pat_status INTO output_patient_id, patient_status
+        FROM Patient
+        WHERE pat_ph_no = input_phone_no AND pat_dob = input_dob;
+
+        -- Check the patient's status
+        IF patient_status = 'A' THEN
+            SET output_message = 'Login successful';
+        ELSEIF patient_status = 'L' THEN
+            SET output_message = 'Your account has been deleted. Please contact support if this is an error.';
+            SET output_patient_id = NULL; -- Set to NULL since login fails
+        END IF;
+    ELSE
+        -- If no matching user is found
+        SET output_message = 'Invalid phone number or date of birth';
+        SET output_patient_id = NULL; -- Set to NULL since login fails
+    END IF;
+END //
+
+DELIMITER ;
+
+// signup and edit patient 
+
+DELIMITER //
+
+CREATE PROCEDURE ManagePatientProfile(
+    IN flag VARCHAR(3),                -- 'INS' for insert, 'UPD' for update, 'DEL' for delete
+    IN in_pat_id INT,                  -- Patient ID (for update or delete)
+    IN in_pat_name VARCHAR(60),        -- Patient Name (for insert or update)
+    IN in_pat_dob DATE,                -- Patient Date of Birth (for insert or update)
+    IN in_pat_adr VARCHAR(100),        -- Patient Address (for insert or update)
+    IN in_pat_ph_no VARCHAR(15),       -- Patient Phone Number (for insert or update)
+    IN in_pat_email VARCHAR(60),       -- Patient Email (for insert or update)
+    IN in_pat_sex VARCHAR(1),          -- Patient Sex (for insert or update)
+    IN in_pat_reg_no VARCHAR(10)     -- Patient Registration Number (for insert or update)
+)
+BEGIN
+    DECLARE existing_phone INT;
+
+    -- If flag is 'INS', check if the phone number already exists
+    IF flag = 'INS' THEN
+        SELECT COUNT(*) INTO existing_phone 
+        FROM Patient 
+        WHERE pat_ph_no = in_pat_ph_no;
+
+        IF existing_phone > 0 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Phone number already exists.';
+        ELSE
+            INSERT INTO Patient (pat_name, pat_dob, pat_adr, pat_ph_no, pat_email, pat_sex, pat_reg_no, pat_status)
+            VALUES (in_pat_name, in_pat_dob, in_pat_adr, in_pat_ph_no, in_pat_email, in_pat_sex, CONCAT('R', AutoGenerate('REG')),'A');
+        END IF;
+
+    -- If flag is 'UPD', check if the patient ID exists
+    ELSEIF flag = 'UPD' THEN
+        SELECT COUNT(*) INTO existing_phone 
+        FROM Patient 
+        WHERE pat_id = in_pat_id;
+
+        IF existing_phone = 0 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Patient ID does not exist.';
+        ELSE
+            UPDATE Patient
+            SET 
+                pat_name = in_pat_name,
+                pat_dob = in_pat_dob,
+                pat_adr = in_pat_adr,
+                pat_ph_no = in_pat_ph_no,
+                pat_email = in_pat_email,
+                pat_sex = in_pat_sex,
+                pat_reg_no = in_pat_reg_no,
+                pat_status = 'A'
+            WHERE pat_id = in_pat_id;
+        END IF;
+
+    -- If flag is 'DEL', mark the patient as deleted
+    ELSEIF flag = 'DEL' THEN
+        SELECT COUNT(*) INTO existing_phone 
+        FROM Patient 
+        WHERE pat_id = in_pat_id;
+
+        IF existing_phone = 0 THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Patient ID does not exist.';
+        ELSE
+            UPDATE Patient
+            SET 
+                pat_status = 'L'  -- 'L' for locked or deleted status
+            WHERE pat_id = in_pat_id;
+        END IF;
+    END IF;
+END //
+
+DELIMITER ;
+
+
+//retrive patient details
+
+DELIMITER //
+
+CREATE PROCEDURE Retrieve_Pat_Details(
+    IN input_pat_id INT,
+    OUT patient_name VARCHAR(60),
+    OUT patient_dob DATE,
+    OUT patient_adr VARCHAR(100),
+    OUT patient_ph_no VARCHAR(15),
+    OUT patient_email VARCHAR(60),
+    OUT patient_reg_no VARCHAR(10),  -- Changed to match the table definition
+    OUT patient_sex VARCHAR(1),
+    OUT patient_status VARCHAR(1)
+)
+BEGIN
+    -- Initialize output variables
+    SET patient_name = NULL;
+    SET patient_dob = NULL;
+    SET patient_adr = NULL;
+    SET patient_ph_no = NULL;
+    SET patient_email = NULL;
+    SET patient_reg_no = NULL;  -- Changed to match the table definition
+    SET patient_sex = NULL;
+    SET patient_status = NULL;
+
+    -- Query to retrieve patient details based on patient ID
+    SELECT 
+        p.pat_name, 
+        p.pat_dob, 
+        p.pat_adr, 
+        p.pat_ph_no, 
+        p.pat_email, 
+        p.pat_reg_no, 
+        p.pat_sex,
+        p.pat_status
+    INTO 
+        patient_name, 
+        patient_dob, 
+        patient_adr, 
+        patient_ph_no, 
+        patient_email, 
+        patient_reg_no,  -- Changed to match the table definition
+        patient_sex,
+        patient_status
+    FROM 
+        Patient AS p
+    WHERE 
+        p.pat_id = input_pat_id; -- Changed to match the column name in the Patient table
+
+    -- Check if patient exists
+    IF patient_name IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Patient not found';
+    END IF;
+END //
+
+DELIMITER ;
+
+//staff login
+
+DELIMITER //
+
+CREATE PROCEDURE LoginStaff(IN staffUsername VARCHAR(255))
+BEGIN
+    DECLARE staff_pswd VARCHAR(255);
+    DECLARE staff_status CHAR(1);   -- Status will be 'A' or 'L'
+    DECLARE staff_type CHAR(1);     -- Staff type will be 'A' (Admin) or 'D' (Doctor)
+    DECLARE msg VARCHAR(255);
+
+    -- Fetch the staff password, status, and type
+    SELECT stf_pswd, stf_status, stf_type INTO staff_pswd, staff_status, staff_type
+    FROM Staff
+    WHERE stf_username = staffUsername;
+
+    -- Check if the staff exists and status is active
+    IF staff_pswd IS NULL THEN
+        SET msg = 'Invalid credentials.';
+    ELSEIF staff_status = 'L' THEN
+        SET msg = 'Account is locked.';
+    ELSEIF staff_status = 'A' THEN
+        SET msg = 'Login successful.';
+    END IF;
+
+    -- Set output parameters
+    SET @staff_type = staff_type;
+    SET @message = msg;
+END //
+
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE GetDoctorDetails(IN doctorId INT)
+BEGIN
+    SELECT stf_id, stf_name,stf_username, stf_speciality, stf_email, stf_ph_no, 
+           stf_qualification, stf_experience, stf_sex, stf_img_path,stf_pswd
+    FROM Staff
+    WHERE stf_id = doctorId;
+END //
+DELIMITER ;
+
+
+DELIMITER //
+CREATE PROCEDURE UpdateDoctorPassword(IN doctorId INT, IN newPassword VARCHAR(100))
+BEGIN
+    UPDATE Staff
+    SET stf_pswd = newPassword
+    WHERE stf_id = doctorId;
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE GetAdminDetails(IN adminId INT)
+BEGIN
+    SELECT stf_id, stf_name,stf_username, stf_speciality, stf_email, stf_ph_no, 
+           stf_qualification, stf_experience, stf_sex, stf_img_path,stf_pswd
+    FROM Staff
+    WHERE stf_id = adminId;
+END //
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE updateAdminDetails(
+    IN adminId INT,
+    IN adminName VARCHAR(60),
+    IN adminUsername VARCHAR(50),
+    IN adminSex VARCHAR(1),
+    IN adminEmail VARCHAR(60),
+    IN adminPhoneNo VARCHAR(15),
+    IN adminSpeciality VARCHAR(50),
+    IN adminPassword VARCHAR(100),
+    IN adminExperience VARCHAR(500),
+    IN adminQualification VARCHAR(100)
+)
+BEGIN
+    UPDATE Staff
+    SET stf_name = adminName,
+        stf_username = adminUsername,
+        stf_sex = adminSex,
+        stf_email = adminEmail,
+        stf_ph_no = adminPhoneNo,
+        stf_speciality = adminSpeciality,
+        stf_pswd = adminPassword,
+        stf_experience = adminExperience,
+        stf_qualification = adminQualification
+    WHERE stf_id = adminId;
+END //
+
+DELIMITER ;
+
+DELIMITER //
+
+CREATE PROCEDURE GetPatientsByDoctor(IN staff_id INT)
+BEGIN
+    SELECT p.pat_reg_no AS regNo,
+           p.pat_name AS name,
+           TIMESTAMPDIFF(YEAR, p.pat_dob, CURDATE()) AS age,
+           p.pat_sex AS sex,
+           p.pat_ph_no AS phoneNumber
+    FROM Patient p
+    JOIN Appointment a ON p.pat_id = a.appt_pat_id
+    WHERE a.appt_stf_id = staff_id 
+    AND p.pat_status = 'A'
+    GROUP BY p.pat_id;
+END //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE GetTodayAppointments(IN staffId INT)
+BEGIN
+    SELECT 
+        a.appt_tok_no AS tokenNo,
+        p.pat_reg_no AS regNo,
+        p.pat_name AS name,
+        YEAR(CURDATE()) - YEAR(p.pat_dob) AS age,
+        p.pat_sex AS sex
+    FROM 
+        Appointment a
+    JOIN 
+        Patient p ON a.appt_pat_id = p.pat_id
+    WHERE 
+        a.appt_stf_id = staffId 
+        AND a.appt_date = CURDATE() 
+        AND a.appt_status = 'B'
+        AND p.pat_status = 'A'
+    ORDER BY 
+        a.appt_tok_no;
+END //
+
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE CreateLeave(
+    IN p_stf_id INT,
+    IN p_hol_date DATE,
+    IN p_hol_type VARCHAR(3),
+    IN p_hol_reason VARCHAR(200)
+)
+BEGIN
+    INSERT INTO Holiday (hol_stf_id, hol_date, hol_type, hol_reason, status) 
+    VALUES (p_stf_id, p_hol_date, p_hol_type, p_hol_reason, 'Applied');
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE GetLeaveHistory(
+    IN p_stf_id INT
+)
+BEGIN
+    SELECT * FROM Holiday WHERE hol_stf_id = p_stf_id;
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE UpdateLeave(
+    IN p_hol_id INT,
+    IN p_hol_type VARCHAR(3),
+    IN p_hol_date DATE,
+    IN p_hol_reason VARCHAR(200)
+)
+BEGIN
+    UPDATE Holiday
+    SET hol_type = p_hol_type, hol_date = p_hol_date, hol_reason = p_hol_reason, status = 'Applied'
+    WHERE hol_id = p_hol_id;
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE DeleteLeave(
+    IN p_hol_id INT
+)
+BEGIN
+    DELETE FROM Holiday WHERE hol_id = p_hol_id;
+END //
+DELIMITER ;
+ 
+
+ DELIMITER //
+CREATE PROCEDURE GetAllLeaves()
+BEGIN
+    SELECT h.hol_id, h.hol_date, h.hol_type, h.hol_reason, h.status, s.stf_name
+    FROM Holiday h
+    JOIN Staff s ON h.hol_stf_id = s.stf_id;
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE ApproveRejectLeave(
+    IN p_hol_id INT,
+    IN p_status VARCHAR(10)
+)
+BEGIN
+    UPDATE Holiday
+    SET status = p_status
+    WHERE hol_id = p_hol_id;
+END //
+DELIMITER ;
+
+DELIMITER //
+
+CREATE PROCEDURE GetLeavesByStatus(IN leaveStatus VARCHAR(20))
+BEGIN
+  SELECT h.hol_id, h.hol_date, h.hol_type, h.hol_reason, h.status, s.stf_name
+    FROM Holiday h
+    JOIN Staff s ON h.hol_stf_id = s.stf_id WHERE h.status = leaveStatus;
+END //
+
+DELIMITER ;
+
+
+
+
+DELIMITER //
+
+CREATE PROCEDURE GetConsultationHistory(
+    IN patientRegNo VARCHAR(10),
+    IN doctorName VARCHAR(60),
+    IN selectedDate DATE
+)
+BEGIN
+    SELECT 
+        c.cons_stf_id, 
+        c.cons_pat_condition, 
+        c.cons_diagnosis, 
+        c.cons_remarks, 
+        m.med_name, 
+        m.med_dosage, 
+        m.med_duration, 
+        m.med_instruction, 
+        m.med_remarks
+    FROM 
+        Consultation c
+    JOIN 
+        Appointment a ON c.cons_appt_id = a.appt_id
+    JOIN 
+        Medication m ON c.cons_id = m.med_cons_id
+    JOIN 
+        Patient p ON a.appt_pat_id = p.pat_id
+    JOIN 
+        Staff s ON a.appt_stf_id = s.stf_id
+    WHERE 
+        p.pat_reg_no = patientRegNo
+        AND s.stf_name = doctorName
+        AND a.appt_date = selectedDate;
+END //
+
+DELIMITER ;
+
+
+
+DELIMITER //
+
+CREATE PROCEDURE GetPatientChartByDate(
+    IN patientRegNo VARCHAR(10),
+    IN selectedDate DATE
+)
+BEGIN
+    SELECT 
+        c.cons_stf_id, 
+        c.cons_pat_condition, 
+        c.cons_diagnosis, 
+        c.cons_remarks, 
+        m.med_name, 
+        m.med_dosage, 
+        m.med_duration, 
+        m.med_instruction, 
+        m.med_remarks
+    FROM 
+        Consultation c
+    JOIN 
+        Appointment a ON c.cons_appt_id = a.appt_id
+    JOIN 
+        Medication m ON c.cons_id = m.med_cons_id
+    JOIN 
+        Patient p ON a.appt_pat_id = p.pat_id
+    WHERE 
+        p.pat_reg_no = patientRegNo
+        AND a.appt_date = selectedDate;
+END //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE GetAllConsultationsForPatient(
+    IN patientRegNo VARCHAR(10)
+)
+BEGIN
+    SELECT 
+        c.cons_stf_id, 
+        c.cons_pat_condition, 
+        c.cons_diagnosis, 
+        c.cons_remarks, 
+        m.med_name, 
+        m.med_dosage, 
+        m.med_duration, 
+        m.med_instruction, 
+        m.med_remarks,
+        a.appt_date
+    FROM 
+        Consultation c
+    JOIN 
+        Appointment a ON c.cons_appt_id = a.appt_id
+    JOIN 
+        Medication m ON c.cons_id = m.med_cons_id
+    JOIN 
+        Patient p ON a.appt_pat_id = p.pat_id
+    WHERE 
+        p.pat_reg_no = patientRegNo;
+END //
+
+DELIMITER ;
+
+
+
+DELIMITER //
+
+CREATE PROCEDURE AddNewChart(
+    IN patientRegNo VARCHAR(10),
+    IN doctorId INT,
+    IN appointmentDate DATE,
+    IN patientCondition TEXT,
+    IN diagnosis TEXT,
+    IN remarks TEXT
+)
+BEGIN
+    -- Declare variables at the start
+    DECLARE patientId INT;
+    DECLARE appointmentId INT;
+
+    -- Fetch patient ID based on registration number (assuming pat_reg_no should be unique)
+    SELECT pat_id INTO patientId 
+    FROM Patient 
+    WHERE pat_reg_no = patientRegNo
+    LIMIT 1;
+
+    -- Fetch appointment ID based on patient, doctor, and appointment date (handling potential duplicates)
+    SELECT appt_id INTO appointmentId 
+    FROM Appointment 
+    WHERE appt_pat_id = patientId 
+      AND appt_stf_id = doctorId 
+      AND appt_date = appointmentDate
+    LIMIT 1;
+
+    -- Insert a new consultation record
+    INSERT INTO Consultation (cons_appt_id, cons_stf_id, cons_pat_id, cons_pat_condition, cons_diagnosis, cons_remarks)
+    VALUES (appointmentId, doctorId, patientId, patientCondition, diagnosis, remarks);
+
+    -- Return the newly created consultation ID
+    SELECT LAST_INSERT_ID() AS consultationId;
+END //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE AddMedication(
+    IN p_consultationId INT,
+    IN p_medicationName VARCHAR(255),
+    IN p_dosage VARCHAR(255),
+    IN p_duration VARCHAR(255),
+    IN p_instruction TINYTEXT,
+    IN p_remarks TINYTEXT
+)
+BEGIN
+    -- Insert medication entry into the Medication table
+    INSERT INTO Medication (
+        med_name,        -- Medication Name
+        med_dosage,      -- Dosage
+        med_duration,    -- Duration
+        med_instruction, -- Instructions
+        med_remarks      -- Remarks
+    )
+    VALUES (
+        p_medicationName,
+        p_dosage,
+        p_duration,
+        p_instruction,
+        p_remarks
+    );
+END //
+
+DELIMITER ;
+
+
+
+
+require('dotenv').config();
+const express = require('express');
+const mysql = require('mysql2');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const bcrypt = require('bcrypt');
+const app = express();
+const port = 5000;
+
+app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// Database configuration
+const dbConfig = {
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+};
+if (process.env.DB_SOCKET_PATH) {
+  dbConfig.socketPath = process.env.DB_SOCKET_PATH;
+}
+// Create the database connection pool
+const db = mysql.createPool(dbConfig);
+
+// Connection testing
+db.getConnection((err) => {
+  if (err) {
+    console.error('Error connecting to MySQL:', err);
+    return;
+  }
+  console.log('Connected to MySQL database');
+});
+
+
+
+
+// POST /api/patients/signup
+app.post('/api/patients/signup', (req, res) => {
+  const { pat_name, pat_dob, pat_adr, pat_ph_no, pat_email, pat_sex } = req.body;
+
+  const query = `CALL ManagePatientProfile(?, NULL, ?, ?, ?, ?, ?, ?, NULL)`;
+
+  db.query(query, ['INS', pat_name, pat_dob, pat_adr, pat_ph_no, pat_email, pat_sex], (err, results) => {
+      if (err) {
+          if (err.sqlState === '45000') {
+              return res.status(400).json({ error: err.message });  // Custom error from the procedure
+          }
+          return res.status(500).json({ error: 'Database error.' });
+      }
+      return res.status(201).json({ message: 'Patient signed up successfully.', data: results });
+  });
+});
+
+// PUT /api/patients/update/:id
+app.put('/api/patients/update/:id', (req, res) => {
+  const pat_id = req.params.id;
+  const { pat_name, pat_dob, pat_adr, pat_ph_no, pat_email, pat_sex, pat_reg_no } = req.body;
+
+  const query = `CALL ManagePatientProfile(?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+  db.query(query, ['UPD', pat_id, pat_name, pat_dob, pat_adr, pat_ph_no, pat_email, pat_sex, pat_reg_no], (err, results) => {
+      if (err) {
+          if (err.sqlState === '45000') {
+              return res.status(400).json({ error: err.message });  // Custom error from the procedure
+          }
+          return res.status(500).json({ error: 'Database error.' });
+      }
+      return res.status(200).json({ message: 'Patient updated successfully.', data: results });
+  });
+});
+// DELETE /api/patients/delete/:id
+app.delete('/api/patients/delete/:id', (req, res) => {
+  const pat_id = req.params.id;
+
+  const query = `CALL ManagePatientProfile(?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL)`;
+
+  db.query(query, ['DEL', pat_id], (err, results) => {
+      if (err) {
+          if (err.sqlState === '45000') {
+              return res.status(400).json({ error: err.message });  // Custom error from the procedure
+          }
+          return res.status(500).json({ error: 'Database error.' });
+      }
+      return res.status(200).json({ message: 'Patient deleted (locked) successfully.', data: results });
+  });
+});
+
+
+// Patient Login API
+app.post('/api/login/patient', (req, res) => {
+  const { phoneNo, dob } = req.body;
+
+  // Call the stored procedure to log in the patient
+  const callProcedure = `
+      CALL LoginUser(?, ?, @patient_id, @message);
+  `;
+
+  // Execute the procedure
+  db.query(callProcedure, [phoneNo, dob], (err) => {
+      if (err) {
+          console.error("Error executing procedure:", err);
+          return res.status(500).json({ error: 'Error executing procedure' });
+      }
+
+      // Retrieve the output parameters
+      const outputQuery = `
+          SELECT @patient_id AS patient_id, @message AS message;
+      `;
+
+      db.query(outputQuery, (err, results) => {
+          if (err) {
+              console.error("Error retrieving output parameters:", err);
+              return res.status(500).json({ error: 'Error retrieving output parameters' });
+          }
+
+          // Check if results exist and retrieve output values
+          if (results.length > 0) {
+              const { patient_id, message } = results[0];
+              
+              // Check if login was successful
+              if (patient_id) {
+                  return res.status(200).json({ message: 'Login successful', patient_id });
+              } else {
+                  // Login failed
+                  return res.status(401).json({ message }); // Return the error message from the procedure
+              }
+          } else {
+              // No results found
+              return res.status(404).json({ message: 'No results found' });
+          }
+      });
+  });
+});
+
+// Patient Details API
+app.get('/api/Retrievepatient/:id', (req, res) => {
+  const patientId = req.params.id;
+
+  // Prepare the SQL query to call the stored procedure
+  const sql = `
+      CALL Retrieve_Pat_Details(?, @name, @dob, @address, @phone_no, @email, @registration_no, @sex,@status);
+  `;
+
+  // Execute the stored procedure
+  db.query(sql, [patientId], (err) => {
+      if (err) {
+          console.error('Error executing stored procedure:', err);
+          return res.status(500).json({ message: 'Error executing stored procedure' });
+      }
+
+      // Query to retrieve the output values from the stored procedure
+      const outputSql = `
+          SELECT @name AS name, @dob AS dob, @address AS address, 
+                 @phone_no AS phone_no, @email AS email, 
+                 @registration_no AS regno, @sex AS sex,@status AS status;
+      `;
+
+      // Fetch output values
+      db.query(outputSql, (err, results) => {
+          if (err) {
+              console.error('Error retrieving output values:', err);
+              return res.status(500).json({ message: 'Error retrieving patient details' });
+          }
+
+          if (results.length > 0) {
+              return res.status(200).json(results[0]); // Return patient details
+          } else {
+              return res.status(404).json({ message: 'Patient not found' });
+          }
+      });
+  });
+});
+
+app.post('/api/login/staff', async (req, res) => { // Add async here
+    const { staffUsername, staffPassword } = req.body;
+
+    db.getConnection((err, connection) => {
+        if (err) {
+            console.error('Error getting connection:', err);
+            return res.status(500).json({ message: 'Error connecting to database' });
+        }
+
+        const callProcedure = "CALL LoginStaff(?)";
+        connection.query(callProcedure, [staffUsername], async (err) => { // Make this query callback async
+            if (err) {
+                console.error('Error executing procedure:', err);
+                connection.release();
+                return res.status(500).json({ message: 'Error logging in staff', error: err.message });
+            }
+
+            const outputQuery = "SELECT @staff_id AS staff_id, @staff_type AS staff_type, @message AS message";
+            connection.query(outputQuery, async (err, results) => { // Make this query callback async
+                connection.release();
+                if (err) {
+                    console.error('Error retrieving output parameters:', err);
+                    return res.status(500).json({ message: 'Error retrieving staff details', error: err.message });
+                }
+
+                const staffIdResult = results[0].staff_id;
+                const staffTypeResult = results[0].staff_type;
+                const message = results[0].message;
+
+                if (message === 'Account is locked.') {
+                    return res.status(401).json({ message });
+                }
+
+                if (message === 'Invalid credentials.') {
+                    return res.status(401).json({ message });
+                }
+
+                // Compare the password and check for status
+                connection.query("SELECT stf_pswd, stf_status FROM Staff WHERE stf_username = ?", [staffUsername], async (err, results) => { // Make this query callback async
+                    if (err) {
+                        console.error('Error fetching staff details:', err);
+                        return res.status(500).json({ message: 'Error fetching staff details' });
+                    }
+
+                    if (results.length === 0 || results[0].stf_status === 'L') {
+                        return res.status(401).json({ message: 'Account is locked or does not exist.' });
+                    }
+
+                    const { stf_pswd: storedPassword } = results[0];
+                    const passwordMatch = await bcrypt.compare(staffPassword, storedPassword); // This can now use await
+
+                    if (passwordMatch) {
+                        // If login is successful, send staff ID and type
+                        res.status(200).json({ message: 'Login successful.', staffId: staffIdResult, staffType: staffTypeResult });
+                    } else {
+                        res.status(401).json({ message: 'Invalid credentials.' });
+                    }
+                });
+            });
+        });
+    });
+});
+
+
+// Endpoint to get doctor details
+app.get('/api/doctor/:id', (req, res) => {
+    const doctorId = req.params.id;
+    db.query('CALL GetDoctorDetails(?)', [doctorId], (err, results) => {
+        if (err) {
+            return res.status(500).json({ message: 'Database error', error: err });
+        }
+        res.json(results[0][0]); // Return the first row from the result
+    });
+});
+
+// Endpoint to update doctor password
+app.post('/api/doctor/update-password', async (req, res) => {
+    const { doctorId, newPassword } = req.body;
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    db.query('CALL UpdateDoctorPassword(?, ?)', [doctorId, hashedPassword], (err) => {
+        if (err) {
+            return res.status(500).json({ message: 'Database error', error: err });
+        }
+        res.json({ message: 'Password updated successfully' });
+    });
+});
+
+// Get Admin Details
+app.get('/api/admin/:id', (req, res) => {
+    const adminId = req.params.id;
+    db.query('CALL GetAdminDetails(?)', [adminId], (err, results) => {
+        if (err) {
+            return res.status(500).json({ message: 'Database error', error: err });
+        }
+        res.json(results[0][0]); // Return the first row from the result
+    });
+});
+
+app.put('/api/admin/update/:id', async (req, res) => {
+    const adminId = req.params.id;
+    const {
+      stf_name,
+      stf_username,
+      stf_sex,
+      stf_speciality,
+      stf_experience,
+      stf_qualification,
+      stf_email,
+      stf_ph_no,
+      stf_pswd, // Password to be updated
+    } = req.body;
+  
+    // Initialize values array for the query
+    const values = [
+      stf_name,
+      stf_username,
+      stf_sex,
+      stf_speciality,
+      stf_experience,
+      stf_qualification,
+      stf_email,
+      stf_ph_no,
+    ];
+  
+    // Check if a new password is provided
+    if (stf_pswd) {
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(stf_pswd, 10);
+      values.push(hashedPassword); // Add the hashed password to the values array
+    } else {
+      // If no new password is provided, do not update the password field
+      values.push(null); // Placeholder for password if not updating
+    }
+    values.push(adminId); // Add adminId at the end of values array
+  
+    // Update admin details, with condition to handle password
+    const sql = `
+      UPDATE Staff
+      SET
+        stf_name = ?,
+        stf_username = ?,
+        stf_sex = ?,
+        stf_speciality = ?,
+        stf_experience = ?,
+        stf_qualification = ?,
+        stf_email = ?,
+        stf_ph_no = ?,
+        stf_pswd = COALESCE(?, stf_pswd) -- Use COALESCE to keep existing password if not updating
+      WHERE
+        stf_id = ?`;
+  
+    db.query(sql, values, (err, result) => {
+      if (err) {
+        console.error('Error updating admin details:', err);
+        return res.status(500).json({ message: 'Failed to update admin details' });
+      }
+      return res.status(200).json({ message: 'Admin details updated successfully' });
+    });
+  });
+
+
+
+
+// API to get patients by doctor's ID
+app.get('/api/patients/:staffId', (req, res) => {
+    const staffId = req.params.staffId;
+  
+    db.query('CALL GetPatientsByDoctor(?)', [staffId], (err, results) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(results[0]); // Results of the procedure
+    });
+  });
+
+  // Endpoint to get today's appointments for a doctor
+app.get('/api/appointments/:staffId', (req, res) => {
+    const staffId = req.params.staffId;
+  
+    db.query('CALL GetTodayAppointments(?)', [staffId], (error, results) => {
+      if (error) {
+        console.error("Error fetching appointments:", error);
+        return res.status(500).json({ error: 'Error fetching appointments' });
+      }
+      res.json(results[0]); // results[0] contains the result set
+    });
+  });
+  
+ 
+// Route for applying leave
+app.post('/api/leave', (req, res) => {
+    const { hol_stf_id, hol_type, hol_date, hol_reason, status } = req.body;
+
+    // Input validation
+    if (!hol_stf_id || !hol_type || !hol_date || !hol_reason) {
+        return res.status(400).json({ error: 'All fields are required.' });
+    }
+
+    // SQL query to insert a new leave request
+    const sql = "INSERT INTO Holiday (hol_stf_id, hol_type, hol_date, hol_reason, status) VALUES (?, ?, ?, ?, ?)";
+    const values = [hol_stf_id, hol_type, hol_date, hol_reason, status];
+
+    db.query(sql, values, (error, results) => {
+        if (error) {
+            // Log the error to help identify the issue
+            console.error("Database error:", error);
+            return res.status(500).json({ error: 'An error occurred while processing your request.' });
+        }
+        res.status(201).json({ message: 'Leave applied successfully!', id: results.insertId });
+    });
+});
+
+
+app.post('/api/updateLeaveStatus', (req, res) => {
+  const { holId, hol_type, hol_date, hol_reason, status } = req.body; // Ensure holId is extracted
+
+  const query = 'UPDATE Holiday SET hol_type = ?, hol_date = ?, hol_reason = ?, status = ? WHERE hol_id = ?';
+  const values = [hol_type, hol_date, hol_reason, status, holId]; // Include all values in the correct order
+
+  db.query(query, values, (error, results) => {
+    if (error) {
+      console.error('Error updating leave status:', error);
+      return res.status(500).json({ success: false, message: 'Database error' });
+    }
+
+    if (results.affectedRows === 0) {
+      // Handle the case where no rows were updated
+      return res.status(404).json({ success: false, message: 'Leave not found' });
+    }
+
+    return res.status(200).json({ success: true });
+  });
+});
+
+  
+  // Route for updating leave
+  // Route for updating leave
+app.put('/api/leave/:id', (req, res) => {
+  const { id } = req.params; // Get the leave ID from the URL parameter
+  const { hol_type, hol_date, hol_reason, status } = req.body;
+
+
+  const sql = 'UPDATE Holiday SET hol_type = ?, hol_date = ?, hol_reason = ?, status = ? WHERE hol_id = ?';
+  db.query(sql, [hol_type, hol_date, hol_reason, status, id], (err, result) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).send('Database error');
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).send('Leave not found');
+    }
+    res.status(200).send('Leave updated successfully!');
+  });
+});
+
+  
+  // API to delete leave
+  app.delete('/api/leave/:id', (req, res) => {
+    const leaveId = req.params.id;
+
+    // SQL query to delete the leave application
+    const sql = "DELETE FROM Holiday WHERE hol_id = ?";
+    db.query(sql, [leaveId], (error, results) => {
+        if (error) {
+            console.error("Database error:", error);
+            return res.status(500).json({ error: 'An error occurred while processing your request.' });
+        }
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ error: 'Leave application not found.' });
+        }
+        res.status(204).send(); // No content
+    });
+});
+
+  // API to get leave history
+  app.get('/api/leave/:staff_id', (req, res) => {
+    const { staff_id } = req.params;
+    db.query('CALL GetLeaveHistory(?)', [staff_id], (error, results) => {
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      res.status(200).json(results[0]); // results[0] contains the result set
+    });
+  });
+  
+// Get All Leaves with optional status filter
+app.get('/api/leave', (req, res) => {
+  const status = req.query.status; // Get the status from the query parameters
+  let sql = 'CALL GetAllLeaves()'; // Default to getting all leaves
+
+  // If a status is provided, modify the query
+  if (status) {
+    sql = 'CALL GetLeavesByStatus(?)'; // You should create this stored procedure to handle the filtering
+  }
+
+  db.query(sql, [status], (err, results) => {
+      if (err) return res.status(500).send(err);
+      res.json(results[0]);
+  });
+});
+
+
+// Approve or Reject a Leave Application
+app.put('/api/leaves/:id', (req, res) => {
+  const { status } = req.body;
+  const leaveId = req.params.id; // Get leave ID from URL
+
+  db.query('CALL ApproveRejectLeave(?, ?)', [leaveId, status], (err) => {
+      if (err) return res.status(500).send(err);
+      res.send(`Leave application ${status === 'Approved' ? 'Approved' : 'Rejected'}.`);
+  });
+});
+
+
+app.post('/api/consultationHistory', (req, res) => {
+  const { patientRegNo, doctorName, selectedDate } = req.body;
+
+  const query = `CALL GetConsultationHistory(?, ?, ?)`;
+
+  db.query(query, [patientRegNo, doctorName, selectedDate], (err, results) => {
+      if (err) {
+          console.error('Error fetching consultation history:', err);
+          return res.status(500).send('Error fetching consultation history');
+      }
+      return res.json(results[0]); // Return the result
+  });
+});
+
+
+app.post('/api/patientChartByDate', (req, res) => {
+  const { patientRegNo, selectedDate } = req.body;
+
+  const query = `CALL GetPatientChartByDate(?, ?)`;
+
+  db.query(query, [patientRegNo, selectedDate], (err, results) => {
+      if (err) {
+          console.error('Error fetching patient chart:', err);
+          return res.status(500).send('Error fetching patient chart');
+      }
+      return res.json(results[0]); // Return the result
+  });
+});
+
+
+app.post('/api/allConsultations', (req, res) => {
+  const { patientRegNo } = req.body;
+
+  const query = `CALL GetAllConsultationsForPatient(?)`;
+
+  db.query(query, [patientRegNo], (err, results) => {
+      if (err) {
+          console.error('Error fetching all consultations:', err);
+          return res.status(500).send('Error fetching all consultations');
+      }
+      return res.json(results[0]); // Return the result
+  });
+});
+
+
+app.post('/api/addNewChart', (req, res) => {
+  const {
+    patientRegNo,
+    doctorId,
+    appointmentDate,
+    patientCondition,
+    diagnosis,
+    remarks,
+    medicationEntries // expecting an array of medication entries
+  } = req.body;
+
+  // Insert consultation details
+  const consultationQuery = `CALL AddNewChart(?, ?, ?, ?, ?, ?)`;
+  const consultationParams = [
+    patientRegNo,
+    doctorId,
+    appointmentDate,
+    patientCondition,
+    diagnosis,
+    remarks
+  ];
+
+  db.query(consultationQuery, consultationParams, (error, consultationResults) => {
+    if (error) {
+      console.error('Error executing consultation query:', error);
+      return res.status(500).send('Internal Server Error');
+    }
+
+    // After inserting consultation, insert medications
+    const consultationId = consultationResults.insertId; // Assuming your procedure returns the new consultation ID
+
+    const medicationQuery = `CALL AddMedication(?, ?, ?, ?, ?, ?)`;
+    const medicationPromises = medicationEntries.map(entry => {
+      const medicationParams = [
+        consultationId,
+        entry.name,
+        entry.dosage,
+        entry.duration,
+        entry.instruction,
+        entry.remarks
+      ];
+      return new Promise((resolve, reject) => {
+        db.query(medicationQuery, medicationParams, (medError) => {
+          if (medError) {
+            console.error('Error executing medication query:', medError);
+            reject(medError);
+          } else {
+            resolve();
+          }
+        });
+      });
+    });
+
+    Promise.all(medicationPromises)
+      .then(() => res.status(200).send('Chart successfully saved!'))
+      .catch(() => res.status(500).send('Error saving medication entries'));
+  });
+});
+
+
+// Start the server
+app.listen(port, () => {
+  console.log(`Server running on http://localhost:${port}`);
+});
