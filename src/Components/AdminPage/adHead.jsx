@@ -39,7 +39,7 @@ const AdminHeader = () => {
     navigate('/login/staff');
   };
 
-  const { name, adminId } = adminDetails;
+  const { name } = adminDetails;
 
   return (
     <header className="bg-[#E6CCB2] text-[#3B2F2F] p-4 flex flex-row items-center justify-between relative">
@@ -53,7 +53,6 @@ const AdminHeader = () => {
         <div className="flex flex-col items-start">
           <p className="text-xl font-bold">Welcome</p>
           <p className="text-lg font-bold">Name: {name}</p>
-          <p className="text-lg font-bold">Admin ID: {adminId}</p>
         </div>
       </div>
 
@@ -68,7 +67,7 @@ const AdminHeader = () => {
         {/* Logout Button */}
         <button
           onClick={handleLogout}
-          className="text-lg font-bold text-red-500 hover:text-red-700"
+          className="text-lg font-bold text-[#3B2F2F] hover:text-[#7F4F24]  transition duration-300 transform hover:scale-105 w-full md:w-auto" // Brown and hover black
         >
           Logout
         </button>
