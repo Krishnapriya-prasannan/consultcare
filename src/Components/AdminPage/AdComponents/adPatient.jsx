@@ -1,39 +1,122 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const AdPatient = () => {
-  const [patients, setPatients] = useState([]); // Removed static patient data
+  const [patients, setPatients] = useState(() => {
+    const savedPatients = localStorage.getItem('patients');
+    return savedPatients ? JSON.parse(savedPatients) : [];
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [searchField, setSearchField] = useState('regno');
   const [confirmation, setConfirmation] = useState(null);
   const navigate = useNavigate();
 
-  const handleSearch = () => {
-    const patient = patients.find((p) =>
-      searchField === 'regno'
-        ? p.regno === searchTerm
-        : searchField === 'phone'
-        ? p.phone === searchTerm
-        : p.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    // If you want to set selectedPatient, you can uncomment the following line
-    // setSelectedPatient(patient || null);
+  const getFlagBySearchField = () => {
+    switch (searchField) {
+      case 'regno':
+        return 3;
+      case 'phone':
+        return 4;
+      case 'name':
+        return 2;
+      default:
+        return 1; // Default to search by RegNo
+    }
   };
 
+  const handleSearch = async () => {
+    const flag = getFlagBySearchField();
+    const searchValue = searchTerm.trim();
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/patients?flag=${flag}&searchValue=${searchValue}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setPatients(data);
+        localStorage.setItem('patients', JSON.stringify(data));
+      } else {
+        console.error('Error fetching patients:', data.message);
+      }
+    } catch (error) {
+      console.error('Network error:', error);
+    }
+  };
+
+  const fetchPatients = async (flag = 1) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/patients?flag=${flag}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setPatients(data);
+        localStorage.setItem('patients', JSON.stringify(data));
+      } else {
+        console.error('Error fetching patients:', data.message);
+      }
+    } catch (error) {
+      console.error('Network error:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
   const handleEdit = (id) => {
-    navigate('/userpage/profile');
+    localStorage.setItem('patient_id',id);
+    console.log('Navigating to profile with patient ID:', id);
+    navigate('/admin/patientprofile');
   };
 
   const handleAddPatient = () => {
-    const newId = Date.now(); // Generate a unique ID
     navigate('/signup', { state: { fromPatientManagement: true } });
-   //navigate('/signup'); // Redirect to the new patient's profile page
   };
 
-  const deletePatient = (id) => {
-    const updatedPatients = patients.filter((p) => p.id !== id);
-    setPatients(updatedPatients);
+  const handleDelete = async (id, regNo) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/patients/delete/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Update the patient status to 'L' (Locked) in the local state
+        setPatients((prevPatients) =>
+          prevPatients.map((p) =>
+            p.pat_id === id ? { ...p, pat_status: 'L' } : p
+          )
+        );
+        localStorage.setItem('patients', JSON.stringify(patients));
+        alert('Patient status changed to Locked successfully.');
+      } else {
+        const errorData = await response.json();
+        alert(`Error deleting patient: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Network error:', error);
+      alert('Failed to delete patient. Please try again later.');
+    }
     setConfirmation(null);
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+
+    return `${day}-${month}-${year}`;
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'A':
+        return 'Active';
+      case 'L':
+        return 'Locked';
+      default:
+        return 'Unknown';
+    }
   };
 
   return (
@@ -41,7 +124,6 @@ const AdPatient = () => {
       <div className="container mx-auto bg-[#E6CCB2] p-6 rounded-md shadow-md">
         <h1 className="text-2xl font-bold mb-6 text-center">Patient Management</h1>
 
-        {/* Search Section and Add Patient Button */}
         <div className="flex flex-col md:flex-row justify-center items-center md:space-x-4 mb-6">
           <select
             value={searchField}
@@ -67,65 +149,86 @@ const AdPatient = () => {
           </button>
 
           <button
-            onClick={handleAddPatient} // Redirect to the new patient profile page
+            onClick={handleAddPatient}
             className="bg-[#9C6644] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded mr-2 transition duration-300 transform hover:scale-105 w-full md:w-auto mt-4 md:mt-0"
           >
             Add Patient
           </button>
         </div>
 
-        {/* Patient List Section */}
         <div className="bg-white p-4 rounded-md shadow-md mt-6">
           <h2 className="text-lg font-semibold mb-4">Patient List</h2>
-          <ul className="space-y-2">
-            {patients.length ? (
-              patients.map((patient) => (
-                <li
-                  key={patient.id}
-                  className="flex justify-between items-center bg-gray-50 p-2 rounded-md hover:bg-gray-100"
-                >
-                  <span>{`${patient.name} (RegNo: ${patient.regno}, Age: ${patient.age}, Sex: ${patient.sex}, Phone: ${patient.phone})`}</span>
-                  <div className="flex space-x-2">
-                    <button
-                      className="bg-[#9C6644] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded mr-2 transition duration-300 transform hover:scale-105 w-full md:w-auto"
-                      onClick={() => handleEdit(patient.id)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="bg-[#9C6644] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded mr-2 transition duration-300 transform hover:scale-105 w-full md:w-auto"
-                      onClick={() =>
-                        setConfirmation({
-                          id: patient.id,
-                          message: `Are you sure you want to delete ${patient.name} (ID: ${patient.id})?`,
-                        })
-                      }
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </li>
-              ))
-            ) : (
-              <li className="text-gray-500">No patients found.</li>
-            )}
-          </ul>
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white border border-gray-200 rounded-md">
+              <thead className="bg-gray-200">
+                <tr>
+                  <th className="py-3 px-4 text-left border-b border-gray-200">Name</th>
+                  <th className="py-3 px-4 text-left border-b border-gray-200">RegNo</th>
+                  <th className="py-3 px-4 text-left border-b border-gray-200">Date of Birth</th>
+                  <th className="py-3 px-4 text-left border-b border-gray-200">Sex</th>
+                  <th className="py-3 px-4 text-left border-b border-gray-200">Phone</th>
+                  <th className="py-3 px-4 text-left border-b border-gray-200">Status</th>
+                  <th className="py-3 px-4 text-center border-b border-gray-200">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {patients.length ? (
+                  patients.map((patient) => (
+                    <tr key={patient.pat_id} className="hover:bg-gray-50">
+                      <td className="py-3 px-4 border-b border-gray-200">{patient.pat_name}</td>
+                      <td className="py-3 px-4 border-b border-gray-200">{patient.pat_reg_no}</td>
+                      <td className="py-3 px-4 border-b border-gray-200">{formatDate(patient.pat_dob)}</td>
+                      <td className="py-3 px-4 border-b border-gray-200">{patient.pat_sex}</td>
+                      <td className="py-3 px-4 border-b border-gray-200">{patient.pat_ph_no}</td>
+                      <td className="py-3 px-4 border-b border-gray-200">{getStatusText(patient.pat_status)}</td>
+                      <td className="py-3 px-4 border-b border-gray-200 text-center">
+                        <button
+                          className="bg-[#9C6644] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded mr-2 transition duration-300 transform hover:scale-105"
+                          onClick={() => handleEdit(patient.pat_id)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="bg-[#9C6644] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded mr-2 transition duration-300 transform hover:scale-105"
+                          onClick={() =>
+                            setConfirmation({
+                              id: patient.pat_id,
+                              regNo: patient.pat_reg_no,
+                              message: `Are you sure you want to change the status of ${patient.pat_name} (RegNo: ${patient.pat_reg_no}) to Locked?`,
+                            })
+                          }
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                     <td className="py-3 px-4 border-b border-gray-200 text-center" colSpan="7">
+                      No patients found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* Delete Confirmation Modal */}
+        {/* Confirmation Dialog */}
         {confirmation && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-            <div className="bg-white p-6 rounded-md shadow-lg">
-              <p>{confirmation.message}</p>
-              <div className="mt-4 flex justify-end space-x-2">
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="bg-white rounded-md shadow-lg p-6">
+              <h3 className="text-lg font-semibold mb-4">{confirmation.message}</h3>
+              <div className="flex justify-end">
                 <button
                   className="bg-[#9C6644] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded mr-2 transition duration-300 transform hover:scale-105"
-                  onClick={() => deletePatient(confirmation.id)}
+                  onClick={() => handleDelete(confirmation.id, confirmation.regNo)}
                 >
-                  Confirm
+                  Yes, Lock
                 </button>
                 <button
-                  className="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded mr-2 transition duration-300 transform hover:scale-105"
+                  className="bg-gray-300 hover:bg-gray-500 text-black font-bold py-2 px-4 rounded"
                   onClick={() => setConfirmation(null)}
                 >
                   Cancel

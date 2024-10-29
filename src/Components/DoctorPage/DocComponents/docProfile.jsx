@@ -47,11 +47,13 @@ const DocProfile = () => {
         <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
           {/* Profile Picture */}
           <div className="flex-shrink-0">
-            <img
-              src={doctorDetails.stf_img_path || 'https://via.placeholder.com/150'}
-              alt="Doctor Profile"
-              className="w-40 h-40 rounded-full shadow-md object-cover"
-            />
+          <img
+  src={doctorDetails.stf_img_path || 'https://example.com/path-to-google-image.jpg'}
+  alt="Doctor Profile"
+  className="w-40 h-40 rounded-full shadow-md object-cover"
+  style={{ objectPosition: 'top' }} // Adjusts the position to focus on the top of the image
+/>
+
           </div>
 
           {/* Doctor Details */}

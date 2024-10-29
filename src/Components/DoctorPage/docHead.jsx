@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { FaUserMd, FaUserCog } from 'react-icons/fa'; // Doctor and Settings icons
 import { MdLocalHospital } from 'react-icons/md'; // Hospital logo icon for ConsultCare
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
 const DoctorHeader = () => {
   const [doctorDetails, setDoctorDetails] = useState({
@@ -12,24 +11,10 @@ const DoctorHeader = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const doctorId = localStorage.getItem('doctor_id');
-
-    const fetchDoctorDetails = async () => {
-      if (doctorId) {
-        try {
-          const response = await axios.get(`http://localhost:5000/api/RetrieveDoctor/${doctorId}`);
-          const { name } = response.data;
-
-          localStorage.setItem('doctorName', name);
-
-          setDoctorDetails({ name });
-        } catch (error) {
-          console.error('Error fetching doctor details:', error);
-        }
-      }
-    };
-
-    fetchDoctorDetails();
+    const doctorName = localStorage.getItem('staff_name');
+    if (doctorName) {
+      setDoctorDetails({ name: doctorName });
+    }
   }, []);
 
   const handleLogout = () => {
@@ -65,7 +50,7 @@ const DoctorHeader = () => {
         {/* Logout Button */}
         <button
           onClick={handleLogout}
-          className="text-lg font-bold text-black hover:text-[#7F4F24]  transition duration-300 transform hover:scale-105 w-full md:w-auto" // Added transition effect
+          className="text-lg font-bold text-black hover:text-[#7F4F24] transition duration-300 transform hover:scale-105 w-full md:w-auto"
         >
           Logout
         </button>
@@ -75,3 +60,4 @@ const DoctorHeader = () => {
 };
 
 export default DoctorHeader;
+

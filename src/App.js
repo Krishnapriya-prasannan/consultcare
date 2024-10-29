@@ -20,6 +20,7 @@ import DocPatient from './Components/DoctorPage/DocComponents/docPatient';
 import DocProfile from './Components/DoctorPage/DocComponents/docProfile';
 import DoctorView from './Components/DoctorPage/DocComponents/chart';
 import PatientHistory from './Components/DoctorPage/DocComponents/history';
+import PatientProfile from './Components/AdminPage/AdComponents/patientprofile';
 const App = () => {
   
   return (
@@ -46,6 +47,7 @@ const App = () => {
         <Route path="/doctorpage/profile" element={<DocProfile />} />
         <Route path="/doctorpage/patient/history" element={<PatientHistory />} />
         <Route path="/doctorpage/appointment_schedule/chart" element={<DoctorView />} />
+        <Route path="/admin/patientprofile" element={<PatientProfile />} />
 
       </Routes>
     </Router>

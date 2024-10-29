@@ -25,35 +25,40 @@ const Login = () => {
     e.preventDefault();
 
     const payload = isUser
-      ? { phoneNo: formData.phoneNo, dob: formData.dob }
-      : { staffUsername: formData.staffUsername, staffPassword: formData.staffPassword }; // Changed staffId to staffUsername
+        ? { phoneNo: formData.phoneNo, dob: formData.dob }
+        : { staffUsername: formData.staffUsername, staffPassword: formData.staffPassword };
 
     try {
-      const endpoint = isUser
-        ? 'http://localhost:5000/api/login/patient'
-        : 'http://localhost:5000/api/login/staff';
+        const endpoint = isUser
+            ? 'http://localhost:5000/api/login/patient'
+            : 'http://localhost:5000/api/login/staff';
 
-      const response = await axios.post(endpoint, payload);
+        const response = await axios.post(endpoint, payload);
 
-      if (isUser) {
-        const { patient_id } = response.data;
-        localStorage.setItem('patient_id', patient_id);
+        if (isUser) {
+            const { patient_id } = response.data;
+            localStorage.setItem('patient_id', patient_id);
+            navigate('/UserPage');
+        } else {
+            const { staffId, staffType,staffName, message } = response.data;
 
-        navigate('/UserPage');
-      } else {
-        const { staffId, staffType, message } = response.data;
-
-        localStorage.setItem('staff_id', staffId);
-        localStorage.setItem('staff_type', staffType);
-
-        navigate(staffType === 'A' ? '/adminpage' : '/doctorpage');
-      }
+            if (staffId !== undefined) {
+                localStorage.setItem('staff_id', staffId); // Store staffId in local storage
+                localStorage.setItem('staff_name',staffName);
+                console.log('Stored staff ID:', staffName); // Log the staff ID to check its value
+                localStorage.setItem('staff_type', staffType);
+                navigate(staffType === 'A' ? '/adminpage' : '/doctorpage');
+            } else {
+                setError('Staff ID is undefined. Please check your login credentials.');
+            }
+        }
     } catch (error) {
-      console.error('Error logging in:', error);
-      const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
-      setError(errorMessage);
+        console.error('Error logging in:', error);
+        const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
+        setError(errorMessage);
     }
-  };
+};
+
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center">

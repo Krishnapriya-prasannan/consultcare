@@ -170,6 +170,408 @@ END //
 
 DELIMITER ;
 
+
+// get specialty
+
+DELIMITER $$
+
+CREATE PROCEDURE GetAllSpecialties()
+BEGIN
+    SELECT DISTINCT stf_speciality 
+    FROM Staff 
+    WHERE stf_speciality IS NOT NULL AND stf_speciality <> '' AND stf_speciality <> 'N/A' AND stf_type <> 'A' AND stf_speciality <> 'Administration' ;
+END $$
+
+DELIMITER ;
+
+
+get doctors in the specilality
+
+DELIMITER $$
+
+CREATE PROCEDURE GetDoctorsBySpecialty (
+    IN specialtyName VARCHAR(255)
+)
+BEGIN
+    SELECT stf_id, stf_name
+    FROM Staff
+    WHERE stf_speciality = specialtyName AND stf_type <> 'A' AND stf_status <> 'L';  -- Assuming you have a specialty column in your Staff table
+END $$
+
+DELIMITER ;
+
+// get available dates 
+
+DELIMITER //
+CREATE PROCEDURE GetNextSevenAvailableDates(
+    IN doctor_id INT
+)
+BEGIN
+    DECLARE currentDate DATE;  
+    DECLARE day_check DATE;
+    DECLARE date_count INT DEFAULT 0;
+
+    SET currentDate = CURDATE();  -- Get current date
+
+    -- Create a temporary table to hold the available dates
+    CREATE TEMPORARY TABLE IF NOT EXISTS TempAvailableDates (
+        available_date DATE
+    );
+
+    -- Include the current date as the first entry
+    INSERT INTO TempAvailableDates (available_date) VALUES (currentDate);
+
+    WHILE date_count < 7 DO
+        SET day_check = DATE_ADD(currentDate, INTERVAL date_count + 1 DAY);  -- Check the next day
+
+        -- Check availability for the doctor on the calculated date, and ensure it's not a holiday
+        IF EXISTS (
+            SELECT 1
+            FROM Availability
+            WHERE avail_stf_id = doctor_id
+              AND avail_day = DAYNAME(day_check)  
+              AND avail_status = 'O'  
+        )
+        AND NOT EXISTS (
+            SELECT 1
+            FROM Holiday
+            WHERE hol_date = day_check AND hol_type = 'FD'
+              AND hol_status = 'A'
+        ) THEN
+            -- Insert the available date into the temporary table
+            INSERT INTO TempAvailableDates (available_date) VALUES (day_check);
+        END IF;
+
+        SET date_count = date_count + 1;  -- Increment the date counter
+    END WHILE;
+
+    -- Select from the temporary table to return the results
+    SELECT available_date FROM TempAvailableDates;
+
+    -- Drop the temporary table (optional)
+    DROP TEMPORARY TABLE IF EXISTS TempAvailableDates;
+END //
+DELIMITER ;
+
+//get time slots 
+
+DELIMITER //
+
+CREATE PROCEDURE ShowAvailableSlots(
+    IN in_stf_id INT,         -- Doctor ID selected by the user
+    IN in_date DATE           -- Date selected by the user
+)
+BEGIN
+    DECLARE day_name VARCHAR(10);
+
+    -- Get the day name (e.g., Monday, Tuesday) from the input date
+    SET day_name = DAYNAME(in_date);
+
+    -- Fetch available 15-minute tokens for the given doctor and day
+    SELECT t.tok_id, t.tok_fr_time, t.tok_to_time, t.tok_no, t.tok_status
+    FROM Availability a
+    JOIN TimeSlot ts ON ts.tsl_avail_id = a.avail_id
+    JOIN Token t ON t.tok_time_id = ts.tsl_id
+    WHERE a.avail_stf_id = in_stf_id
+      AND a.avail_day = day_name
+      AND a.avail_status = 'O'        -- Availability status is 'Open'
+      AND ts.tsl_status = 'O'         -- Time slot status is 'Open'
+      AND t.tok_status = 'A'          -- Token status is 'Available'
+    ORDER BY t.tok_fr_time;           -- Order by starting time of the tokens
+END //
+
+DELIMITER ;
+
+
+// tirgger to update the timeslot 
+
+DELIMITER //
+
+CREATE TRIGGER UpdateTimeSlotStatusOnHolidayInsert
+AFTER INSERT ON Holiday
+FOR EACH ROW
+BEGIN
+    -- Check if the holiday status is 'A' (Active)
+    IF NEW.hol_status = 'A' THEN
+        -- Update time slots for MHD type (Morning)
+        IF NEW.hol_type = 'MHD' THEN
+            UPDATE TimeSlot
+            SET tsl_status = 'C'  -- Change status to 'C' (Closed)
+            WHERE tsl_avail_id IN (
+                SELECT avail_id 
+                FROM Availability 
+                WHERE avail_stf_id = NEW.hol_stf_id 
+                AND avail_day = DAYNAME(NEW.hol_date)
+            )
+            AND tsl_status = 'O' AND tsl_type = 'MS';  -- Only update open time slots
+
+        -- Update time slots for EHD type (Evening)
+        ELSEIF NEW.hol_type = 'EHD' THEN
+            UPDATE TimeSlot
+            SET tsl_status = 'C'  -- Change status to 'C' (Closed)
+            WHERE tsl_avail_id IN (
+                SELECT avail_id 
+                FROM Availability 
+                WHERE avail_stf_id = NEW.hol_stf_id 
+                AND avail_day = DAYNAME(NEW.hol_date)
+            )
+            AND tsl_status = 'O' AND tsl_type = 'ES';  -- Only update open time slots
+        END IF;
+    END IF;
+END //
+
+DELIMITER ;
+
+// to set the slot status back to open
+
+SET GLOBAL event_scheduler = ON;
+
+DELIMITER //
+
+CREATE EVENT UpdateTimeSlotStatus
+ON SCHEDULE EVERY 1 DAY -- You can adjust the frequency of this event
+DO
+BEGIN
+    -- Update TimeSlot status to 'O' if the holiday date has passed and the status is 'C'
+    UPDATE TimeSlot
+    SET tsl_status = 'O'
+    WHERE tsl_status = 'C' 
+      AND EXISTS (
+          SELECT 1
+          FROM Holiday h
+          WHERE h.hol_stf_id = TimeSlot.tsl_avail_id  -- Assuming tsl_avail_id corresponds to the staff ID in Holiday
+            AND h.hol_date < CURDATE()  -- Check if the holiday date is in the past
+            AND h.hol_status = 'A'  -- Only consider holidays with status 'A'
+      );
+END //
+
+DELIMITER ;
+
+//book appointment
+
+DELIMITER $$
+
+CREATE PROCEDURE BookAppointment(
+    IN p_doctorId INT,
+    IN p_patientId INT,
+    IN p_appointmentDate DATE,
+    IN p_timeSlot VARCHAR(50),
+    IN p_tokenNumber INT
+)
+BEGIN
+    DECLARE v_timeSlotId INT;
+    DECLARE v_availabilityId INT;
+
+    -- Start a transaction
+    START TRANSACTION;
+
+    -- Insert into Appointment table
+    INSERT INTO Appointment (appt_stf_id, appt_pat_id, appt_date, appt_time_slt, appt_tok_no, appt_status)
+    VALUES (p_doctorId, p_patientId, p_appointmentDate, 
+            STR_TO_DATE(SUBSTRING_INDEX(p_timeSlot, ' - ', 1), '%H:%i:%s'),
+            p_tokenNumber, 'B');
+
+    -- Find the timeSlot ID and availability ID from TimeSlot and Availability tables
+    SELECT tsl.tsl_id, tsl.tsl_avail_id
+    INTO v_timeSlotId, v_availabilityId
+    FROM TimeSlot tsl
+    INNER JOIN availability av ON tsl.tsl_avail_id = av.avail_id
+    WHERE av.avail_stf_id = p_doctorId
+      AND tsl.tsl_fr_time = STR_TO_DATE(SUBSTRING_INDEX(p_timeSlot, ' - ', 1), '%H:%i:%s')
+      AND tsl.tsl_to_time = STR_TO_DATE(SUBSTRING_INDEX(p_timeSlot, ' - ', -1), '%H:%i:%s')
+      AND av.avail_day = DAYNAME(p_appointmentDate);
+
+    -- Set the corresponding token's status as 'B' (Booked) in the Token table
+    UPDATE Token
+    SET tok_status = 'B'
+    WHERE tok_time_id = v_timeSlotId
+      AND tok_no = p_tokenNumber;
+
+    COMMIT;
+
+END $$
+
+DELIMITER ;
+
+// display appointments 
+
+DELIMITER $$
+
+CREATE PROCEDURE GetAppointmentsByPatientId (
+    IN patientId INT,
+    IN flag INT
+)
+BEGIN
+    IF flag = 1 THEN
+        -- Return all appointments for the patient
+        SELECT 
+            a.appt_id AS appointment_id,
+            a.appt_date AS appointment_date,
+            a.appt_time_slt AS time_slot,
+            s.stf_name AS doctor_name,
+            a.appt_tok_no AS token_number,
+            a.appt_remarks AS remarks,
+            a.appt_status AS status
+        FROM 
+            Appointment a
+        JOIN 
+            Staff s ON a.appt_stf_id = s.stf_id
+        WHERE 
+            a.appt_pat_id = patientId
+        ORDER BY 
+            a.appt_id DESC;  -- Order by ID, most recent first
+
+    ELSEIF flag = 2 THEN
+        -- Return only appointments with status 'B'
+        SELECT 
+            a.appt_id AS appointment_id,
+            a.appt_date AS appointment_date,
+            a.appt_time_slt AS time_slot,
+            s.stf_name AS doctor_name,
+            a.appt_tok_no AS token_number,
+            a.appt_remarks AS remarks,
+            a.appt_status AS status
+        FROM 
+            Appointment a
+        JOIN 
+            Staff s ON a.appt_stf_id = s.stf_id
+        WHERE 
+            a.appt_pat_id = patientId
+            AND a.appt_status = 'B'
+        ORDER BY 
+            a.appt_id DESC;  -- Order by ID, most recent first
+
+    ELSEIF flag = 3 THEN
+        -- Return only appointments with status 'F' that have corresponding medications
+        SELECT 
+            a.appt_id AS appointment_id,
+            a.appt_date AS appointment_date,
+            a.appt_time_slt AS time_slot,
+            s.stf_name AS doctor_name,
+            a.appt_tok_no AS token_number,
+            a.appt_remarks AS remarks,
+            a.appt_status AS status
+        FROM 
+            Appointment a
+        JOIN 
+            Staff s ON a.appt_stf_id = s.stf_id
+        JOIN 
+            Medication m ON a.appt_id = m.med_appt_id  -- Join with Medication table
+        WHERE 
+            a.appt_pat_id = patientId
+            AND a.appt_status = 'F'
+        GROUP BY 
+            a.appt_id  -- Group by appointment ID to avoid duplicates
+        ORDER BY 
+            a.appt_id DESC;  -- Order by ID, most recent first
+    END IF;
+END$$
+
+DELIMITER ;
+
+//cancel appointment
+
+SET SQL_SAFE_UPDATES = 0;
+DELIMITER $$
+
+CREATE PROCEDURE CancelAppointment (
+    IN p_appt_id INT -- Appointment ID to cancel
+)
+BEGIN
+    DECLARE v_existing_time_slot TIME;
+    DECLARE v_existing_token_number INT;
+
+    -- Fetch existing appointment details
+    SELECT 
+        appt_time_slt, 
+        appt_tok_no
+    INTO 
+        v_existing_time_slot, 
+        v_existing_token_number
+    FROM Appointment
+    WHERE appt_id = p_appt_id;
+
+    -- Mark appointment as canceled and set the token as open
+    UPDATE Appointment
+    SET appt_status = 'C' -- Mark appointment as canceled
+    WHERE appt_id = p_appt_id;
+
+    UPDATE Token
+    SET tok_status = 'A' -- Mark token as available
+    WHERE tok_no = v_existing_token_number;
+END$$
+
+DELIMITER ;
+
+//edit appointment
+
+SET SQL_SAFE_UPDATES = 0;
+DELIMITER $$
+
+CREATE PROCEDURE UpdateAppointment (
+    IN p_appt_id INT,              -- Appointment ID to update
+    IN p_doctorId INT,             -- Doctor ID (Staff ID)
+    IN p_patientId INT,            -- Patient ID
+    IN p_appointmentDate DATE,     -- New appointment date
+    IN p_timeSlot TIME,            -- New time slot (matching TIME type)
+    IN p_tokenNumber INT           -- New token number
+)
+BEGIN
+    DECLARE v_existing_token_number INT;
+
+    -- Fetch existing appointment details
+    SELECT appt_tok_no
+    INTO v_existing_token_number
+    FROM Appointment
+    WHERE appt_id = p_appt_id;
+
+    -- Mark the previous token as available ('A')
+    UPDATE Token
+    SET tok_status = 'A' -- Mark the previous token as available
+    WHERE tok_no = v_existing_token_number;
+
+    -- Update the appointment with the new values
+    UPDATE Appointment
+    SET appt_stf_id = p_doctorId,           -- Update doctor ID
+        appt_pat_id = p_patientId,          -- Update patient ID
+        appt_date = p_appointmentDate,      -- Update appointment date
+        appt_time_slt = p_timeSlot,         -- Update appointment time slot
+        appt_tok_no = p_tokenNumber          -- Update token number
+    WHERE appt_id = p_appt_id;
+
+    -- Mark the new token as booked ('B')
+    UPDATE Token
+    SET tok_status = 'B' -- Mark the new token as booked
+    WHERE tok_no = p_tokenNumber;
+END$$
+
+DELIMITER ;
+
+// display prescriptions
+
+DELIMITER $$
+
+CREATE PROCEDURE GetMedicinesByAppointmentId(
+    IN apptId INT
+)
+BEGIN
+    -- Select medicines related to the given appointment ID
+    SELECT 
+        med_id AS medicine_id,
+        med_name AS medicine_name,
+        med_dosage AS dosage,
+        med_duration AS duration,
+        med_instruction AS instruction,
+        med_remarks AS remarks
+    FROM 
+        Medication
+    WHERE 
+        med_appt_id = apptId;
+END$$
+
+DELIMITER ;
+
+
 //staff login
 
 DELIMITER //

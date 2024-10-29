@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { FaUserCog, FaUserShield } from 'react-icons/fa'; // Admin and Settings icons
 import { MdLocalHospital } from 'react-icons/md'; // Hospital logo icon for ConsultCare
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
 const AdminHeader = () => {
   const [adminDetails, setAdminDetails] = useState({
@@ -13,25 +12,10 @@ const AdminHeader = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const adminId = localStorage.getItem('admin_id');
-
-    const fetchAdminDetails = async () => {
-      if (adminId) {
-        try {
-          const response = await axios.get(`http://localhost:5000/api/RetrieveAdmin/${adminId}`);
-          const { name, adminId } = response.data;
-
-          localStorage.setItem('adminName', name);
-          localStorage.setItem('adminId', adminId);
-
-          setAdminDetails({ name, adminId });
-        } catch (error) {
-          console.error('Error fetching admin details:', error);
-        }
-      }
-    };
-
-    fetchAdminDetails();
+    const adminName = localStorage.getItem('staff_name');
+    if (adminName) {
+      setAdminDetails({ name: adminName });
+    }
   }, []);
 
   const handleLogout = () => {
@@ -39,7 +23,7 @@ const AdminHeader = () => {
     navigate('/login/staff');
   };
 
-  const { name } = adminDetails;
+  const { name, adminId } = adminDetails;
 
   return (
     <header className="bg-[#E6CCB2] text-[#3B2F2F] p-4 flex flex-row items-center justify-between relative">
@@ -67,7 +51,7 @@ const AdminHeader = () => {
         {/* Logout Button */}
         <button
           onClick={handleLogout}
-          className="text-lg font-bold text-[#3B2F2F] hover:text-[#7F4F24]  transition duration-300 transform hover:scale-105 w-full md:w-auto" // Brown and hover black
+          className="text-lg font-bold text-red-500 hover:text-red-700"
         >
           Logout
         </button>

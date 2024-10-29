@@ -91,7 +91,8 @@ $response
 
 # Define the API URI for viewing appointments
 $patientId = 1  # Replace with the actual patient ID you want to query
-$uri = "http://localhost:5000/api/appointments/$patientId"
+$flag = 3
+$uri = "http://localhost:5000/api/appointments/${patientId,flag}"
 
 # Send the GET request
 $response = Invoke-RestMethod -Uri $uri -Method Get -ContentType "application/json"
@@ -237,5 +238,180 @@ $response
 
 
 
+# Define the API URI for viewing appointments
+$patientId = 1  # Replace with the actual patient ID you want to query
+$flag = 1
+$uri = "http://localhost:5000/api/appointments/$patientId?flag=$flag"
 
+# Send the GET request
+$response = Invoke-RestMethod -Uri $uri -Method Get -ContentType "application/json"
+
+# Output the response
+$response
+
+
+
+# Define the appointment ID for which you want to fetch medicines
+$appointmentId = 55 # Replace with an actual appointment ID
+
+# Define the API URL
+$medicinesApiUrl = "http://localhost:5000/api/medicines/$appointmentId"
+
+# Send a GET request to the medicines API
+$response = Invoke-RestMethod -Uri $medicinesApiUrl -Method Get
+
+# Output the response
+if ($response) {
+    Write-Host "Medicines retrieved successfully for Appointment ID: $appointmentId"
+    $response | Format-Table -AutoSize
+} else {
+    Write-Host "No medicines found or an error occurred."
+}
+
+
+# Define the API URL and doctor ID
+$doctorId = 1  # Replace with the actual doctor ID you want to test
+$apiUrl = "http://localhost:5000/api/doctor/$doctorId"
+
+# Send GET request to the API
+try {
+    $response = Invoke-RestMethod -Uri $apiUrl -Method GET
+    Write-Host "API response:" -ForegroundColor Green
+    $response | ConvertTo-Json -Depth 10
+}
+catch {
+    Write-Host "Error occurred: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Define the API URL
+$apiUrl = "http://localhost:5000/api/patients?flag=1"
+
+# Send GET request to the API
+try {
+    $response = Invoke-RestMethod -Uri $apiUrl -Method GET
+    Write-Host "API response:" -ForegroundColor Green
+    $response | ConvertTo-Json -Depth 10
+}
+catch {
+    Write-Host "Error occurred: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Define the API URL
+$apiUrl = "http://localhost:5000/api/patients?flag=2&searchValue=John%20Doe"
+
+# Send GET request to the API
+try {
+    $response = Invoke-RestMethod -Uri $apiUrl -Method GET
+    Write-Host "API response:" -ForegroundColor Green
+    $response | ConvertTo-Json -Depth 10
+}
+catch {
+    Write-Host "Error occurred: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Define the API URL
+$apiUrl = "http://localhost:5000/api/patients?flag=3&searchValue=R12"
+
+
+# Send GET request to the API
+try {
+    $response = Invoke-RestMethod -Uri $apiUrl -Method GET
+    Write-Host "API response:" -ForegroundColor Green
+    $response | ConvertTo-Json -Depth 10
+}
+catch {
+    Write-Host "Error occurred: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Define the API URL
+$apiUrl = "http://localhost:5000/api/patients?flag=4&searchValue=1234567890"
+
+# Send GET request to the API
+try {
+    $response = Invoke-RestMethod -Uri $apiUrl -Method GET
+    Write-Host "API response:" -ForegroundColor Green
+    $response | ConvertTo-Json -Depth 10
+}
+catch {
+    Write-Host "Error occurred: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+
+# Define the API URL for Appointments
+$appointmentsApiUrlFlag1 = "http://localhost:5000/api/appointments?flag=1"
+
+# Send GET request to the Appointments API for flag 1
+try {
+    $appointmentsResponseFlag1 = Invoke-RestMethod -Uri $appointmentsApiUrlFlag1 -Method GET
+    Write-Host "Flag 1 - List All Appointments response:" -ForegroundColor Green
+    $appointmentsResponseFlag1 | ConvertTo-Json -Depth 10
+}
+catch {
+    Write-Host "Error occurred for Flag 1: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# Define the API URL for Appointments
+$doctorName = "Dr. John Doe"  # Change this to a valid doctor name in your database
+$appointmentsApiUrlFlag2 = "http://localhost:5000/api/appointments?flag=2&searchValue=$([uri]::EscapeDataString($doctorName))"
+
+# Send GET request to the Appointments API for flag 2
+try {
+    $appointmentsResponseFlag2 = Invoke-RestMethod -Uri $appointmentsApiUrlFlag2 -Method GET
+    Write-Host "Flag 2 - List Appointments by Doctor Name response:" -ForegroundColor Green
+    $appointmentsResponseFlag2 | ConvertTo-Json -Depth 10
+}
+catch {
+    Write-Host "Error occurred for Flag 2: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+
+# Define the API URL for Appointments
+$patientName = "John Doe"  # Change this to a valid patient name in your database
+$appointmentsApiUrlFlag3 = "http://localhost:5000/api/appointments?flag=3&searchValue=$([uri]::EscapeDataString($patientName))"
+
+# Send GET request to the Appointments API for flag 3
+try {
+    $appointmentsResponseFlag3 = Invoke-RestMethod -Uri $appointmentsApiUrlFlag3 -Method GET
+    Write-Host "Flag 3 - List Appointments by Patient Name response:" -ForegroundColor Green
+    $appointmentsResponseFlag3 | ConvertTo-Json -Depth 10
+}
+catch {
+    Write-Host "Error occurred for Flag 3: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+
+# Define the API URL for Appointments
+$appointmentDate = "2024-10-22"  # Change this to a valid date in your database
+$appointmentsApiUrlFlag4 = "http://localhost:5000/api/appointments?flag=4&searchValue=$appointmentDate"
+
+# Send GET request to the Appointments API for flag 4
+try {
+    $appointmentsResponseFlag4 = Invoke-RestMethod -Uri $appointmentsApiUrlFlag4 -Method GET
+    Write-Host "Flag 4 - List Appointments by Date response:" -ForegroundColor Green
+    $appointmentsResponseFlag4 | ConvertTo-Json -Depth 10
+}
+catch {
+    Write-Host "Error occurred for Flag 4: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+
+# If you want to test with only registration number
+$inputRegNo = "R11"  # Change this to a valid registration number in your database
+$inputPhoneNo = ""  # Use an empty string for testing
+$patientIdApiUrl = "http://localhost:5000/api/get-patient-id?regNo=$inputRegNo&phNo=$inputPhoneNo"
+# Prepare the body for the POST request
+$body = @{
+    reg_no = $inputRegNo
+    phone_no = $inputPhoneNo
+}
+
+# Send POST request to the Patient ID API
+try {
+    $patientIdResponse = Invoke-RestMethod -Uri "http://localhost:5000/api/get-patient-id" -Method POST -Body ($body | ConvertTo-Json) -ContentType "application/json"
+    Write-Host "Patient ID Retrieval Response:" -ForegroundColor Green
+    $patientIdResponse | ConvertTo-Json -Depth 10 | Write-Host
+}
+catch {
+    Write-Host "Error occurred while retrieving patient ID: $($_.Exception.Message)" -ForegroundColor Red
+}
 

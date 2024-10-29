@@ -10,7 +10,7 @@ const DocAppmt = () => {
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/appointment/${staffId}`);
+        const response = await axios.get(`http://localhost:5000/api/dailyappointment/${staffId}`);
         setAppointmentsData(response.data);
 
       } catch (error) {
