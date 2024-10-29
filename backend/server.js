@@ -357,6 +357,48 @@ app.delete('/api/appointments/cancel/:appointmentId', (req, res) => {
         res.json({ message: 'Appointment cancelled successfully' });
     });
 });
+
+
+
+app.get('/api/medicines/:appointmentId', (req, res) => {
+    const appointmentId = parseInt(req.params.appointmentId); // Get appointment ID from URL parameters
+
+    if (isNaN(appointmentId)) {
+        return res.status(400).json({ error: 'Invalid appointment ID' });
+    }
+
+    // Call the GetMedicinesByAppointmentId stored procedure
+    db.query('CALL GetMedicinesByAppointmentId(?)', [appointmentId], (error, results) => {
+        if (error) {
+            console.error('Error fetching medicines:', error);
+            return res.status(500).json({ error: 'Database query failed', message: error.message });
+        }
+
+        // Log the results from the stored procedure
+        console.log('Results from stored procedure:', results);
+
+        // results is an array, with the first element being the result set
+        const medicines = results[0].map(row => ({
+            medicineId: row.medicine_id,           // Use the correct field name
+            appointmentId: appointmentId,            // Use appointmentId passed in
+            medicineName: row.medicine_name,        // Use the correct field name
+            dosage: row.dosage,                     // Use the correct field name
+            duration: row.duration,                  // Use the correct field name
+            instructions: row.instruction,           // Use the correct field name
+            remarks: row.remarks                     // Use the correct field name
+        }));
+
+        console.log('Mapped medicines:', medicines); // Log the mapped medicines
+
+        // Check if any medicines were found
+        if (medicines.length === 0) {
+            return res.status(404).json({ message: 'No medicines found for this appointment' });
+        }
+
+        res.json(medicines); // Respond with the list of medicines
+    });
+});
+
   
 app.post('/api/login/staff', async (req, res) => { // Add async here
     const { staffUsername, staffPassword } = req.body;
@@ -375,7 +417,7 @@ app.post('/api/login/staff', async (req, res) => { // Add async here
                 return res.status(500).json({ message: 'Error logging in staff', error: err.message });
             }
 
-            const outputQuery = "SELECT @staff_id AS staff_id, @staff_type AS staff_type, @message AS message";
+            const outputQuery = "SELECT @staff_id AS staff_id, @staff_name as staff_name, @staff_type AS staff_type, @message AS message";
             connection.query(outputQuery, async (err, results) => { // Make this query callback async
                 connection.release();
                 if (err) {
@@ -384,6 +426,7 @@ app.post('/api/login/staff', async (req, res) => { // Add async here
                 }
 
                 const staffIdResult = results[0].staff_id;
+                const staffNameResult = results[0].staff_name;
                 const staffTypeResult = results[0].staff_type;
                 const message = results[0].message;
 
@@ -411,7 +454,7 @@ app.post('/api/login/staff', async (req, res) => { // Add async here
 
                     if (passwordMatch) {
                         // If login is successful, send staff ID and type
-                        res.status(200).json({ message: 'Login successful.', staffId: staffIdResult, staffType: staffTypeResult });
+                        res.status(200).json({ message: 'Login successful.', staffId: staffIdResult,staffName : staffNameResult, staffType: staffTypeResult });
                     } else {
                         res.status(401).json({ message: 'Invalid credentials.' });
                     }
@@ -424,13 +467,15 @@ app.post('/api/login/staff', async (req, res) => { // Add async here
 
 // Endpoint to get doctor details
 app.get('/api/doctor/:id', (req, res) => {
-    const doctorId = req.params.id;
-    db.query('CALL GetDoctorDetails(?)', [doctorId], (err, results) => {
-        if (err) {
-            return res.status(500).json({ message: 'Database error', error: err });
-        }
-        res.json(results[0][0]); // Return the first row from the result
-    });
+  const doctorId = req.params.id;
+  db.query('CALL GetDoctorDetails(?)', [doctorId], (err, results) => {
+      if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ message: 'Database error', error: err });
+      }
+      console.log('Doctor details retrieved:', results); // Log the results
+      res.json(results[0][0]); // Return the first row from the result
+  });
 });
 
 // Endpoint to update doctor password
@@ -537,7 +582,7 @@ app.get('/api/patients/:staffId', (req, res) => {
   });
 
  // Endpoint to get today's appointments for a doctor
-app.get('/api/appointment/:staffId', (req, res) => {
+app.get('/api/dailyappointment/:staffId', (req, res) => {
   const staffId = req.params.staffId;
 
   db.query('CALL GetTodayAppointments(?)', [staffId], (error, results) => {
@@ -783,7 +828,98 @@ app.get('/api/patientsId/:regNo', (req, res) => {
   });
 });
 
+app.get('/api/patients', (req, res) => {
+    const flag = parseInt(req.query.flag);
+    const searchValue = req.query.searchValue || '';
 
+    // Validate flag parameter
+    if (![1, 2, 3, 4, 5].includes(flag)) {
+        return res.status(400).json({ message: 'Invalid flag value. Use 1, 2, 3, or 4.' });
+    }
+
+    // Call the stored procedure with the provided flag and searchValue
+    db.query('CALL ListPatients(?, ?)', [flag, searchValue], (err, results) => {
+        if (err) {
+            return res.status(500).json({ message: 'Database error', error: err });
+        }
+        res.json(results[0]);  // Return the results from the stored procedure
+    });
+});
+
+app.get('/api/appointment-statistics', (req, res) => {
+    db.query('CALL GetAppointmentStatistics()', (error, results) => {
+        if (error) {
+            console.error('Error executing stored procedure:', error);
+            return res.status(500).send('Internal Server Error');
+        }
+        
+        // results[0] contains the results from the stored procedure
+        res.json(results[0]); // Return the JSON response
+    });
+});
+
+app.get('/api/appointments', (req, res) => {
+    const flag = parseInt(req.query.flag);
+    const searchValue = req.query.searchValue || null;
+
+    // Validate flag parameter
+    if (![1, 2, 3, 4].includes(flag)) {
+        return res.status(400).json({ message: 'Invalid flag value. Use 1, 2, 3, or 4.' });
+    }
+
+    // Call the stored procedure with the provided flag and searchValue
+    db.query('CALL ListAppointments(?, ?)', [flag, searchValue], (err, results) => {
+        if (err) {
+            console.error('Database error:', err); // Log the error for debugging
+            return res.status(500).json({ message: 'Database error', error: err });
+        }
+        res.json(results[0]);  // Return the results from the stored procedure
+    });
+});
+
+
+app.post('/api/get-patient-id', (req, res) => {
+    const { reg_no, phone_no } = req.body; // Extract registration number and phone number from request body
+    console.log('Request received:', req.body);
+    // Input validation
+    if (!reg_no && !phone_no) {
+        return res.status(400).json({ error: 'At least one of reg_no or phone_no must be provided.' });
+    }
+
+    // Call the stored procedure
+    db.query('CALL GetPatientId(?, ?)', [reg_no || null, phone_no || null], (error, results) => {
+        console.log('Request received:', res.body);
+        if (error) {
+            console.error('Error executing stored procedure:', error);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+
+        // Check if results are returned
+        if (results[0].length > 0) {
+            return res.json({ patientId: results[0][0].pat_id }); // Return the patient ID
+        } else {
+            return res.status(404).json({ message: 'No patient found.' }); // No patient found
+        }
+    });
+});
+
+app.get('/api/doctors', (req, res) => {
+  const flag = parseInt(req.query.flag);
+  const searchValue = req.query.searchValue || '';
+
+  // Validate flag parameter
+  if (![1, 2, 3].includes(flag)) {
+      return res.status(400).json({ message: 'Invalid flag value. Use 1, 2, or 3.' });
+  }
+
+  // Call the stored procedure with the provided flag and searchValue
+  db.query('CALL ListDoctors(?, ?)', [flag, searchValue], (err, results) => {
+      if (err) {
+          return res.status(500).json({ message: 'Database error', error: err });
+      }
+      res.json(results[0]);  // Return the results from the stored procedure
+  });
+});
 
 
 // Start the server

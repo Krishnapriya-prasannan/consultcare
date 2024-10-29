@@ -8,7 +8,6 @@ const Modal = ({ isOpen, onClose, medicines, appointmentId }) => {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-[#E6CFC2] rounded-lg shadow-lg p-6 max-w-3xl w-full"> {/* Increased max-w to 3xl */}
-        <h2 className="text-xl font-bold mb-4">Medicines for Appointment ID: {appointmentId}</h2>
         {medicines.length === 0 ? (
           <p>No medicines found for this appointment.</p>
         ) : (

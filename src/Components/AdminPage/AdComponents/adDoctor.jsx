@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios'; // Import axios for making API calls
 
 const DoctorManagement = () => {
   const [showAddDoctor, setShowAddDoctor] = useState(false);
   const [doctors, setDoctors] = useState([]);
+  const [filteredDoctors, setFilteredDoctors] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [formValues, setFormValues] = useState({
     name: '',
@@ -75,18 +78,42 @@ const DoctorManagement = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     console.log('Form Submitted:', formValues);
     setShowAddDoctor(false);
+    
+    // API call to add a doctor (you'll need to define the endpoint)
+    try {
+      const response = await axios.post('/api/add-doctor', formValues);
+      setDoctors([...doctors, response.data]);
+    } catch (error) {
+      console.error('Error adding doctor:', error);
+    }
   };
 
-  const handleSearchDoctor = (e) => {
-    const searchTerm = e.target.value.toLowerCase();
-    setDoctors(doctors.filter((doctor) =>
-      doctor.name.toLowerCase().includes(searchTerm) || doctor.specialization.toLowerCase().includes(searchTerm)
-    ));
-  };
+  useEffect(() => {
+    // Fetch doctors from API
+    const fetchDoctors = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/doctors'); // Adjust the endpoint as needed
+        setDoctors(response.data);
+      } catch (error) {
+        console.error('Error fetching doctors:', error);
+      }
+    };
+
+    fetchDoctors();
+  }, []);
+
+  useEffect(() => {
+    // Filter doctors based on search term
+    const filtered = doctors.filter((doctor) =>
+      doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doctor.specialization.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredDoctors(filtered);
+  }, [searchTerm, doctors]);
 
   return (
     <div className="container mx-auto p-4 bg-[#E6CCB2] rounded-md">
@@ -99,7 +126,7 @@ const DoctorManagement = () => {
           <input
             type="text"
             placeholder="Search Doctor by Name or Specialization"
-            onChange={handleSearchDoctor}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full max-w-xs p-2 border border-gray-300 rounded-md"
           />
           <button className="bg-[#9C6644] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded mr-2 transition duration-300 transform hover:scale-105 w-full md:w-auto">Search</button>
@@ -123,6 +150,7 @@ const DoctorManagement = () => {
               value={formValues.name}
               onChange={handleInputChange}
               className="p-2 border border-gray-300 rounded-md"
+              required
             />
             <select
               name="sex"
@@ -141,14 +169,16 @@ const DoctorManagement = () => {
               value={formValues.specialization}
               onChange={handleInputChange}
               className="p-2 border border-gray-300 rounded-md"
+              required
             />
             <input
               type="number"
               name="experience"
-              placeholder="Experience"
+              placeholder="Experience (years)"
               value={formValues.experience}
               onChange={handleInputChange}
               className="p-2 border border-gray-300 rounded-md"
+              required
             />
             <input
               type="text"
@@ -157,6 +187,7 @@ const DoctorManagement = () => {
               value={formValues.qualification}
               onChange={handleInputChange}
               className="p-2 border border-gray-300 rounded-md"
+              required
             />
             <input
               type="text"
@@ -165,6 +196,7 @@ const DoctorManagement = () => {
               value={formValues.address}
               onChange={handleInputChange}
               className="p-2 border border-gray-300 rounded-md"
+              required
             />
             <input
               type="email"
@@ -173,6 +205,7 @@ const DoctorManagement = () => {
               value={formValues.email}
               onChange={handleInputChange}
               className="p-2 border border-gray-300 rounded-md"
+              required
             />
             <input
               type="tel"
@@ -181,6 +214,7 @@ const DoctorManagement = () => {
               value={formValues.phoneNumber}
               onChange={handleInputChange}
               className="p-2 border border-gray-300 rounded-md"
+              required
             />
             <input
               type="password"
@@ -189,6 +223,7 @@ const DoctorManagement = () => {
               value={formValues.password}
               onChange={handleInputChange}
               className="p-2 border border-gray-300 rounded-md"
+              required
             />
             <select
               name="type"
@@ -196,8 +231,8 @@ const DoctorManagement = () => {
               onChange={handleInputChange}
               className="p-2 border border-gray-300 rounded-md"
             >
-              <option value="Doctor">D</option>
-              <option value="Admin">A</option>
+              <option value="Doctor">Doctor</option>
+              <option value="Admin">Admin</option>
             </select>
             <input
               type="text"
@@ -213,18 +248,19 @@ const DoctorManagement = () => {
           <div className="mt-4">
             {Object.keys(formValues.availability).map((day) => (
               <div key={day} className="mb-4">
-                <div className="flex justify-between items-center">
-                  <label className="text-lg font-medium">{day}</label>
+                <label className="flex items-center">
                   <input
                     type="checkbox"
                     checked={formValues.availability[day].enabled}
                     onChange={() => toggleDayAvailability(day)}
+                    className="mr-2"
                   />
-                </div>
+                  <span>{day}</span>
+                </label>
                 {formValues.availability[day].enabled && (
-                  <div className="mt-2">
+                  <div className="pl-4">
                     {/* Morning Shift */}
-                    <div className="mb-2">
+                    <div>
                       <p className="font-medium">Morning Shift</p>
                       <div className="flex gap-2">
                         <input
@@ -239,10 +275,18 @@ const DoctorManagement = () => {
                           onChange={(e) => handleAvailabilityChange(day, 'morning', 'to', e.target.value)}
                           className="p-2 border border-gray-300 rounded-md"
                         />
+                        <input
+                          type="number"
+                          value={formValues.availability[day].morning.tokens}
+                          onChange={(e) => handleAvailabilityChange(day, 'morning', 'tokens', e.target.value)}
+                          className="p-2 border border-gray-300 rounded-md"
+                          placeholder="Tokens"
+                        />
                       </div>
                     </div>
+
                     {/* Evening Shift */}
-                    <div className="mb-2">
+                    <div>
                       <p className="font-medium">Evening Shift</p>
                       <div className="flex gap-2">
                         <input
@@ -257,6 +301,13 @@ const DoctorManagement = () => {
                           onChange={(e) => handleAvailabilityChange(day, 'evening', 'to', e.target.value)}
                           className="p-2 border border-gray-300 rounded-md"
                         />
+                        <input
+                          type="number"
+                          value={formValues.availability[day].evening.tokens}
+                          onChange={(e) => handleAvailabilityChange(day, 'evening', 'tokens', e.target.value)}
+                          className="p-2 border border-gray-300 rounded-md"
+                          placeholder="Tokens"
+                        />
                       </div>
                     </div>
                   </div>
@@ -265,52 +316,38 @@ const DoctorManagement = () => {
             ))}
           </div>
 
-          <button type="submit" className="bg-[#9C6644] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded mt-4 transition duration-300 transform hover:scale-105">
-            Submit
-          </button>
+          <button type="submit" className="bg-[#9C6644] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded mt-4 transition duration-300 transform hover:scale-105">Save Doctor</button>
         </form>
       )}
 
       {/* Doctor List */}
-      <table className="min-w-full bg-white border border-gray-300 rounded-md">
-        <thead>
-          <tr>
-            <th className="px-4 py-2 border-b">Name</th>
-            <th className="px-4 py-2 border-b">Type</th>
-            <th className="px-4 py-2 border-b">Specialization</th>
-            <th className="px-4 py-2 border-b">Email</th>
-            <th className="px-4 py-2 border-b">Phone Number</th>
-            <th className="px-4 py-2 border-b">Qualification</th>
-            <th className="px-4 py-2 border-b">Experience</th>
-            <th className="px-4 py-2 border-b">Sex</th>
-            <th className="px-4 py-2 border-b">Status</th>
-            <th className="px-4 py-2 border-b">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {doctors.map((doctor) => (
-            <tr key={doctor.id}>
-              <td className="px-4 py-2 border-b">{doctor.name}</td>
-              <td className="px-4 py-2 border-b">{doctor.type}</td>
-              <td className="px-4 py-2 border-b">{doctor.specialization}</td>
-              <td className="px-4 py-2 border-b">{doctor.email}</td>
-              <td className="px-4 py-2 border-b">{doctor.phoneNumber}</td>
-              <td className="px-4 py-2 border-b">{doctor.qualification}</td>
-              <td className="px-4 py-2 border-b">{doctor.experience}</td>
-              <td className="px-4 py-2 border-b">{doctor.sex}</td>
-              <td className="px-4 py-2 border-b">{doctor.status}</td>
-              <td className="px-4 py-2 border-b flex space-x-2">
-                <button onClick={() => handleEditDoctor(doctor.id)} className="bg-[#9C6644] hover:bg-[#582F0E] text-white font-bold py-2 px-4 rounded transition duration-300 transform hover:scale-105">
-                  Edit
-                </button>
-                <button onClick={() => handleDeleteDoctor(doctor.id)} className="bg-red-600 hover:bg-red-800 text-white font-bold py-2 px-4 rounded transition duration-300 transform hover:scale-105">
-                  Delete
-                </button>
-              </td>
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white border border-gray-300">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="py-2 border-b text-left">Name</th>
+              <th className="py-2 border-b text-left">Specialization</th>
+              <th className="py-2 border-b text-left">Experience</th>
+              <th className="py-2 border-b text-left">Phone Number</th>
+              <th className="py-2 border-b text-left">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredDoctors.map((doctor) => (
+              <tr key={doctor.id}>
+                <td className="border-b py-2">{doctor.name}</td>
+                <td className="border-b py-2">{doctor.specialization}</td>
+                <td className="border-b py-2">{doctor.experience}</td>
+                <td className="border-b py-2">{doctor.phoneNumber}</td>
+                <td className="border-b py-2">
+                  <button onClick={() => handleEditDoctor(doctor.id)} className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded mr-2">Edit</button>
+                  <button onClick={() => handleDeleteDoctor(doctor.id)} className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded">Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
