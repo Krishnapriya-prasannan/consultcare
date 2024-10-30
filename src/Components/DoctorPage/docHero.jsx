@@ -1,7 +1,34 @@
-import React from 'react';
-import { FaClipboardList, FaCalendarCheck } from 'react-icons/fa'; // Importing icons
+import React, { useEffect, useState } from 'react';
+import Axios from 'axios';
+import { FaClipboardList, FaCalendarCheck } from 'react-icons/fa';
 
-const DocHero = ({ totalAppointments, upcomingAppointments }) => {
+const DocHero = () => {
+  const [totalAppointments, setTotalAppointments] = useState(0);
+  const [upcomingAppointments, setUpcomingAppointments] = useState(0);
+  
+  // Assuming you store the staffId in local storage
+  const staffId = localStorage.getItem('staff_id');
+
+  useEffect(() => {
+    const fetchAppointmentsCount = async () => {
+      try {
+        console.log('Fetching counts for staffId:', staffId); // Debugging line
+        const response = await Axios.get(`http://localhost:5000/api/appointments/count/${staffId}`);
+        console.log('API Response:', response.data); // Debugging line
+        setTotalAppointments(response.data.totalAppointments);
+        setUpcomingAppointments(response.data.upcomingAppointments);
+      } catch (error) {
+        console.error('Error fetching appointment counts:', error);
+      }
+    };
+
+    if (staffId) { // Ensure staffId exists before calling the API
+      fetchAppointmentsCount();
+    } else {
+      console.warn('staffId not found in local storage.');
+    }
+  }, [staffId]);
+
   return (
     <div className="bg-EDE0D4 p-10">
       <div className="max-w-screen-xl mx-auto">

@@ -21,12 +21,15 @@ const DocAppmt = () => {
     fetchAppointments();
   }, [staffId]);
 
-  const addChart = (tokenNo) => {
+  const addChart = (tokenNo,regNo) => {
     alert(`Adding chart for token number: ${tokenNo}`);
-    goToNewPage(); // Navigate to the new page after adding the chart
+    goToNewPage(tokenNo,regNo); // Navigate to the new page after adding the chart
   };
 
-  const goToNewPage = () => {
+  const goToNewPage = (tokenNo,regNo) => {
+    localStorage.setItem('regno', regNo);
+    localStorage.setItem('tokNo', tokenNo);
+
     navigate('/doctorpage/appointment_schedule/chart'); // Navigate to the new page
   };
 
@@ -57,7 +60,7 @@ const DocAppmt = () => {
                 <td className="p-3 text-center">{appointment.sex}</td>
                 <td className="p-3 text-center">
                   <button
-                    onClick={() => addChart(appointment.tokenNo)}  // Properly handling the click
+                    onClick={() => addChart(appointment.tokenNo,appointment.regNo)}  // Properly handling the click
                     className="bg-[#7F4F24] hover:bg-[#7F5539] text-white font-bold py-2 px-4 rounded transition duration-300 transform hover:scale-105"
                   >
                     Add Chart

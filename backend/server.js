@@ -739,6 +739,7 @@ app.post('/api/addNewChart', async (req, res) => {
     patientRegNo,
     doctorId,
     appointmentDate,
+    apptTokNo,
     patientCondition,
     diagnosis,
     remarks,
@@ -747,7 +748,7 @@ app.post('/api/addNewChart', async (req, res) => {
 
   console.log('Appointment Date:', appointmentDate);
 
-  const query = `CALL AddNewChart(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  const query = `CALL AddNewChart(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
   try {
     // Loop through the medication entries and call the stored procedure for each
@@ -756,6 +757,7 @@ app.post('/api/addNewChart', async (req, res) => {
         patientRegNo,
         doctorId,
         appointmentDate,
+        apptTokNo,
         patientCondition,
         diagnosis,
         remarks,
@@ -813,20 +815,24 @@ app.get('/api/patientHistory/:regNo', (req, res) => {
 
 
 app.get('/api/patientsId/:regNo', (req, res) => {
-  const regNo = req.query.regNo;
-  // Query the database to find the patient ID based on regNo
-  // Example query
-  connection.query('SELECT patientId FROM Patients WHERE regNo = ?', [regNo], (error, results) => {
-      if (error) {
-          return res.status(500).json({ error: 'Database query failed.' });
-      }
-      if (results.length > 0) {
-          return res.json({ patientId: results[0].patientId });
-      } else {
-          return res.status(404).json({ error: 'Patient not found.' });
-      }
+  const regNo = req.params.regNo; // Correctly access the route parameter
+  db.query('CALL GetPatientId(?)', [regNo], (error, results) => {
+    if (error) {
+      console.error('Database query failed:', error); // Log error details
+      return res.status(500).json({ error: 'Database query failed.' });
+    }
+    if (results[0].length > 0) { // Accessing the nested result array
+      const patientId = results[0][0].pat_id; // Retrieve patient ID
+      console.log('Retrieved Patient ID:', patientId); // Log the patient ID
+      return res.json({ patientId });
+    } else {
+      console.log('Patient not found for registration number:', regNo); // Log if not found
+      return res.status(404).json({ error: 'Patient not found.' });
+    }
   });
 });
+
+
 
 app.get('/api/patients', (req, res) => {
     const flag = parseInt(req.query.flag);

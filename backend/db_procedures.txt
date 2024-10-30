@@ -395,7 +395,7 @@ DELIMITER ;
 
 // display appointments 
 
-DELIMITER $$
+DELIMITER //
 
 CREATE PROCEDURE GetAppointmentsByPatientId (
     IN patientId INT,
@@ -465,7 +465,7 @@ BEGIN
         ORDER BY 
             a.appt_id DESC;  -- Order by ID, most recent first
     END IF;
-END$$
+END//
 
 DELIMITER ;
 
@@ -795,6 +795,7 @@ CREATE PROCEDURE AddNewChart(
     IN patientRegNo VARCHAR(10),
     IN doctorId INT,
     IN appointmentDate DATE,
+    IN apptTokNo INT,
     IN patientCondition TEXT,
     IN diagnosis TEXT,
     IN remarks TEXT,
@@ -808,7 +809,6 @@ BEGIN
     DECLARE new_cons_id INT;
     DECLARE patientId INT;
     DECLARE apptId INT;
-
     -- Get patient ID from the Patient table based on the patient registration number
     SELECT pat_id INTO patientId 
     FROM Patient 
@@ -820,6 +820,7 @@ BEGIN
     WHERE appt_date = appointmentDate 
       AND appt_pat_id = patientId 
       AND appt_stf_id = doctorId
+      AND appt_tok_no = apptTokNo
     LIMIT 1;
 
     -- Debug: Check if appointment exists
@@ -865,4 +866,14 @@ END;
 
 //
 
+DELIMITER ;
+
+
+DELIMITER //
+CREATE PROCEDURE GetPatientId(
+    IN p_reg_no VARCHAR(10)
+)
+BEGIN
+    SELECT pat_id FROM Patient WHERE pat_reg_no = p_reg_no;
+END //
 DELIMITER ;

@@ -287,6 +287,7 @@ DELIMITER //
 CREATE PROCEDURE GetTodayAppointments(IN staffId INT)
 BEGIN
     SELECT 
+    
         a.appt_tok_no AS tokenNo,
         p.pat_reg_no AS regNo,
         p.pat_name AS name,
@@ -315,8 +316,8 @@ CREATE PROCEDURE CreateLeave(
     IN p_hol_reason VARCHAR(200)
 )
 BEGIN
-    INSERT INTO Holiday (hol_stf_id, hol_date, hol_type, hol_reason, status) 
-    VALUES (p_stf_id, p_hol_date, p_hol_type, p_hol_reason, 'Applied');
+    INSERT INTO Holiday (hol_stf_id, hol_date, hol_type, hol_reason, hol_status) 
+    VALUES (p_stf_id, p_hol_date, p_hol_type, p_hol_reason, 'W');
 END //
 DELIMITER ;
 
@@ -338,7 +339,7 @@ CREATE PROCEDURE UpdateLeave(
 )
 BEGIN
     UPDATE Holiday
-    SET hol_type = p_hol_type, hol_date = p_hol_date, hol_reason = p_hol_reason, status = 'Applied'
+    SET hol_type = p_hol_type, hol_date = p_hol_date, hol_reason = p_hol_reason, hol_status = 'W'
     WHERE hol_id = p_hol_id;
 END //
 DELIMITER ;
@@ -356,7 +357,7 @@ DELIMITER ;
  DELIMITER //
 CREATE PROCEDURE GetAllLeaves()
 BEGIN
-    SELECT h.hol_id, h.hol_date, h.hol_type, h.hol_reason, h.status, s.stf_name
+    SELECT h.hol_id, h.hol_date, h.hol_type, h.hol_reason, h.hol_status, s.stf_name
     FROM Holiday h
     JOIN Staff s ON h.hol_stf_id = s.stf_id;
 END //
@@ -369,7 +370,7 @@ CREATE PROCEDURE ApproveRejectLeave(
 )
 BEGIN
     UPDATE Holiday
-    SET status = p_status
+    SET hol_status = p_status
     WHERE hol_id = p_hol_id;
 END //
 DELIMITER ;
@@ -378,114 +379,9 @@ DELIMITER //
 
 CREATE PROCEDURE GetLeavesByStatus(IN leaveStatus VARCHAR(20))
 BEGIN
-  SELECT h.hol_id, h.hol_date, h.hol_type, h.hol_reason, h.status, s.stf_name
+  SELECT h.hol_id, h.hol_date, h.hol_type, h.hol_reason, h.hol_status, s.stf_name
     FROM Holiday h
-    JOIN Staff s ON h.hol_stf_id = s.stf_id WHERE h.status = leaveStatus;
-END //
-
-DELIMITER ;
-
-
-
-
-DELIMITER //
-
-CREATE PROCEDURE GetConsultationHistory(
-    IN patientRegNo VARCHAR(10),
-    IN doctorName VARCHAR(60),
-    IN selectedDate DATE
-)
-BEGIN
-    SELECT 
-        c.cons_stf_id, 
-        c.cons_pat_condition, 
-        c.cons_diagnosis, 
-        c.cons_remarks, 
-        m.med_name, 
-        m.med_dosage, 
-        m.med_duration, 
-        m.med_instruction, 
-        m.med_remarks
-    FROM 
-        Consultation c
-    JOIN 
-        Appointment a ON c.cons_appt_id = a.appt_id
-    JOIN 
-        Medication m ON c.cons_id = m.med_cons_id
-    JOIN 
-        Patient p ON a.appt_pat_id = p.pat_id
-    JOIN 
-        Staff s ON a.appt_stf_id = s.stf_id
-    WHERE 
-        p.pat_reg_no = patientRegNo
-        AND s.stf_name = doctorName
-        AND a.appt_date = selectedDate;
-END //
-
-DELIMITER ;
-
-
-
-DELIMITER //
-
-CREATE PROCEDURE GetPatientChartByDate(
-    IN patientRegNo VARCHAR(10),
-    IN selectedDate DATE
-)
-BEGIN
-    SELECT 
-        c.cons_stf_id, 
-        c.cons_pat_condition, 
-        c.cons_diagnosis, 
-        c.cons_remarks, 
-        m.med_name, 
-        m.med_dosage, 
-        m.med_duration, 
-        m.med_instruction, 
-        m.med_remarks
-    FROM 
-        Consultation c
-    JOIN 
-        Appointment a ON c.cons_appt_id = a.appt_id
-    JOIN 
-        Medication m ON c.cons_id = m.med_cons_id
-    JOIN 
-        Patient p ON a.appt_pat_id = p.pat_id
-    WHERE 
-        p.pat_reg_no = patientRegNo
-        AND a.appt_date = selectedDate;
-END //
-
-DELIMITER ;
-
-
-DELIMITER //
-
-CREATE PROCEDURE GetAllConsultationsForPatient(
-    IN patientRegNo VARCHAR(10)
-)
-BEGIN
-    SELECT 
-        c.cons_stf_id, 
-        c.cons_pat_condition, 
-        c.cons_diagnosis, 
-        c.cons_remarks, 
-        m.med_name, 
-        m.med_dosage, 
-        m.med_duration, 
-        m.med_instruction, 
-        m.med_remarks,
-        a.appt_date
-    FROM 
-        Consultation c
-    JOIN 
-        Appointment a ON c.cons_appt_id = a.appt_id
-    JOIN 
-        Medication m ON c.cons_id = m.med_cons_id
-    JOIN 
-        Patient p ON a.appt_pat_id = p.pat_id
-    WHERE 
-        p.pat_reg_no = patientRegNo;
+    JOIN Staff s ON h.hol_stf_id = s.stf_id WHERE h.hol_status = leaveStatus;
 END //
 
 DELIMITER ;
@@ -500,65 +396,74 @@ CREATE PROCEDURE AddNewChart(
     IN appointmentDate DATE,
     IN patientCondition TEXT,
     IN diagnosis TEXT,
-    IN remarks TEXT
+    IN remarks TEXT,
+    IN medName VARCHAR(100),
+    IN medDosage VARCHAR(50),
+    IN medDuration VARCHAR(30),
+    IN medInstruction TINYTEXT,
+    IN medRemarks TINYTEXT
 )
 BEGIN
-    -- Declare variables at the start
+    DECLARE new_cons_id INT;
     DECLARE patientId INT;
-    DECLARE appointmentId INT;
+    DECLARE apptId INT;
 
-    -- Fetch patient ID based on registration number (assuming pat_reg_no should be unique)
+    -- Get patient ID from the Patient table based on the patient registration number
     SELECT pat_id INTO patientId 
     FROM Patient 
-    WHERE pat_reg_no = patientRegNo
-    LIMIT 1;
+    WHERE pat_reg_no = patientRegNo;
 
-    -- Fetch appointment ID based on patient, doctor, and appointment date (handling potential duplicates)
-    SELECT appt_id INTO appointmentId 
+    -- Check if the appointment exists
+    SELECT appt_id INTO apptId
     FROM Appointment 
-    WHERE appt_pat_id = patientId 
-      AND appt_stf_id = doctorId 
-      AND appt_date = appointmentDate
+    WHERE appt_date = appointmentDate 
+      AND appt_pat_id = patientId 
+      AND appt_stf_id = doctorId
+
     LIMIT 1;
 
-    -- Insert a new consultation record
-    INSERT INTO Consultation (cons_appt_id, cons_stf_id, cons_pat_id, cons_pat_condition, cons_diagnosis, cons_remarks)
-    VALUES (appointmentId, doctorId, patientId, patientCondition, diagnosis, remarks);
+    -- Debug: Check if appointment exists
+    IF apptId IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Appointment does not exist';
+    END IF;
 
-    -- Return the newly created consultation ID
-    SELECT LAST_INSERT_ID() AS consultationId;
+    -- Check if a consultation already exists for this appointment
+    SELECT cons_id INTO new_cons_id
+    FROM Consultation
+    WHERE cons_appt_id = apptId
+    LIMIT 1;
+
+    -- If no consultation exists, insert a new one
+    IF new_cons_id IS NULL THEN
+        INSERT INTO Consultation (cons_appt_id, cons_stf_id, cons_pat_id, cons_pat_condition, cons_diagnosis, cons_remarks)
+        VALUES (apptId, doctorId, patientId, patientCondition, diagnosis, remarks);
+        
+        -- Get the last inserted consultation ID
+        SET new_cons_id = LAST_INSERT_ID();
+    END IF;
+
+    -- Insert into Medication table, associating with the existing or newly created consultation
+    INSERT INTO Medication (med_cons_id, med_appt_id, med_name, med_dosage, med_duration, med_instruction, med_remarks)
+    VALUES (new_cons_id, apptId, medName, medDosage, medDuration, medInstruction, medRemarks);
 END //
 
 DELIMITER ;
 
 
+
 DELIMITER //
 
-CREATE PROCEDURE AddMedication(
-    IN p_consultationId INT,
-    IN p_medicationName VARCHAR(255),
-    IN p_dosage VARCHAR(255),
-    IN p_duration VARCHAR(255),
-    IN p_instruction TINYTEXT,
-    IN p_remarks TINYTEXT
-)
+CREATE TRIGGER after_consultation_insert
+AFTER INSERT ON Consultation
+FOR EACH ROW
 BEGIN
-    -- Insert medication entry into the Medication table
-    INSERT INTO Medication (
-        med_name,        -- Medication Name
-        med_dosage,      -- Dosage
-        med_duration,    -- Duration
-        med_instruction, -- Instructions
-        med_remarks      -- Remarks
-    )
-    VALUES (
-        p_medicationName,
-        p_dosage,
-        p_duration,
-        p_instruction,
-        p_remarks
-    );
-END //
+    -- Update the appointment status from 'B' to 'F' for the corresponding appointment
+    UPDATE Appointment
+    SET appt_status = 'F'
+    WHERE appt_id = NEW.cons_appt_id AND appt_status = 'B';
+END;
+
+//
 
 DELIMITER ;
 
@@ -571,6 +476,7 @@ const mysql = require('mysql2');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
+
 const app = express();
 const port = 5000;
 
@@ -740,6 +646,190 @@ app.get('/api/Retrievepatient/:id', (req, res) => {
   });
 });
 
+
+app.get('/api/specialties', (req, res) => {
+  db.query('CALL GetAllSpecialties()', (error, results) => {
+    if (error) {
+      console.error('Error fetching specialties: ', error);
+      return res.status(500).json({ error: 'Database query failed' });
+    }
+
+    // results is an array, with the first element being the result set
+    const specialties = results[0].map(row => row.stf_speciality);
+    res.json(specialties);
+  });
+});
+
+app.get('/api/doctors/:specialty', (req, res) => {
+  const specialtyName = req.params.specialty; // Get the specialty from the URL parameters
+
+  db.query('CALL GetDoctorsBySpecialty(?)', [specialtyName], (error, results) => {
+    if (error) {
+      console.error('Error fetching doctors: ', error);
+      return res.status(500).json({ error: 'Database query failed' });
+    }
+
+    // results is an array, with the first element being the result set
+    const doctors = results[0].map(row => ({
+      id: row.stf_id,    // Assuming stf_id is the doctor's ID
+      name: row.stf_name  // Assuming stf_name is the doctor's name
+    }));
+
+    res.json(doctors); // Respond with the list of doctors
+  });
+});
+
+app.get('/api/available-dates/:doctorId', (req, res) => {
+  const doctorId = req.params.doctorId;
+
+  // Log the incoming request
+  console.log('Fetching available dates for doctor ID:', doctorId);
+
+  // Execute the stored procedure
+  db.query('CALL GetNextSevenAvailableDates(?);', [doctorId], (error, results) => {
+      if (error) {
+          console.error('Error executing query:', error);
+          return res.status(500).json({ error: 'Internal Server Error' });
+      }
+
+      // Access the results
+      const availableDates = results[0]; // The first result set contains the available dates
+
+      if (availableDates.length > 0) {
+          res.json({ available_dates: availableDates });
+      } else {
+          res.json({ message: 'No available dates found.' });
+      }
+  });
+});
+
+
+
+app.get('/api/available-slots/:doctorId/:date', (req, res) => {
+  const doctorId = parseInt(req.params.doctorId); // Get doctor ID from URL parameters
+  const selectedDate = req.params.date; // Get selected date from URL parameters
+
+  db.query('CALL ShowAvailableSlots(?, ?)', [doctorId, selectedDate], (error, results) => {
+    if (error) {
+      console.error('Error fetching available slots: ', error);
+      return res.status(500).json({ error: 'Database query failed' });
+    }
+
+    // results is an array, with the first element being the result set
+    const slots = results[0].map(row => ({
+      id: row.tok_id,               // Token ID
+      fromTime: row.tok_fr_time,    // Start time of the slot
+      toTime: row.tok_to_time,      // End time of the slot
+      tokenNumber: row.tok_no,       // Token number
+      status: row.tok_status         // Token status
+    }));
+
+    res.json(slots); // Respond with the list of available slots
+  });
+});
+
+app.post('/api/book-appointment', (req, res) => {
+  const { doctorId, patientId, appointmentDate, timeSlot, tokenNumber } = req.body;
+
+  // Log the incoming request
+  console.log('Booking appointment for Doctor ID:', doctorId, 'Patient ID:', patientId);
+
+  // Ensure required parameters are provided
+  if (!doctorId || !patientId || !appointmentDate || !timeSlot || !tokenNumber) {
+      return res.status(400).json({ error: 'All parameters are required' });
+  }
+
+  // Execute the stored procedure to book the appointment
+  db.query('CALL BookAppointment(?, ?, ?, ?, ?);', 
+      [doctorId, patientId, appointmentDate, timeSlot, tokenNumber], 
+      (error, results) => {
+          if (error) {
+              console.error('Error executing query:', error);
+              return res.status(500).json({ error: 'Internal Server Error' });
+          }
+
+          // If booking is successful, send a success response
+          res.json({ message: 'Appointment booked successfully!' });
+      }
+  );
+});
+
+app.get('/api/appointments/:patientId', (req, res) => {
+    const patientId = parseInt(req.params.patientId); // Get patient ID from URL parameters
+    const flag = parseInt(req.query.flag); // Get flag from the query string
+
+    // Check for valid flags: 1, 2, or 3
+    if (isNaN(flag) || (flag < 1 || flag > 3)) {
+        return res.status(400).json({ error: 'Invalid flag. Flag must be 1, 2, or 3.' });
+    }
+
+    // Call the stored procedure with the flag
+    db.query('CALL GetAppointmentsByPatientId(?, ?)', [patientId, flag], (error, results) => {
+        if (error) {
+            console.error('Error fetching appointments:', error);
+            return res.status(500).json({ error: 'Database query failed', message: error.message });
+        }
+
+        // Results is an array, with the first element being the result set
+        const appointments = results[0].map(row => ({
+            appointmentId: row.appointment_id,    // Appointment ID
+            appointmentDate: row.appointment_date, // Appointment date
+            timeSlot: row.time_slot,               // Time slot for the appointment
+            doctorName: row.doctor_name,           // Name of the doctor
+            tokenNumber: row.token_number,         // Token number
+            remarks: row.remarks,                  // Remarks associated with the appointment
+            status: row.status,                    // Status of the appointment
+        }));
+
+        res.json(appointments); // Respond with the list of appointments
+    });
+});
+
+
+
+app.put('/api/appointments/update/:id', (req, res) => {
+    const appointmentId = req.params.id; // Get the appointment ID from the URL parameters
+    const { doctorId, patientId, appointmentDate, timeSlot, tokenNumber } = req.body; // Extract details from request body
+
+    // Log the parameters
+    console.log('Updating appointment with parameters:', {
+        appointmentId,
+        doctorId,
+        patientId,
+        appointmentDate,
+        timeSlot,
+        tokenNumber
+    });
+
+    // SQL query to call the stored procedure
+    const query = `CALL UpdateAppointment(?, ?, ?, ?, ?, ?)`;
+
+    // Execute the stored procedure with the provided parameters
+    db.query(query, [appointmentId, doctorId, patientId, appointmentDate, timeSlot, tokenNumber], (err, results) => {
+        if (err) {
+            console.error('Error executing query:', err); // Log the error for debugging
+            if (err.sqlState === '45000') {
+                return res.status(400).json({ error: err.message }); // Return a 400 status for custom errors
+            }
+            return res.status(500).json({ error: 'Database error.' }); // Return a 500 status for general errors
+        }
+        return res.status(200).json({ message: 'Appointment updated successfully.', data: results }); // Success response
+    });
+});
+
+
+// DELETE /api/appointments/cancel/:id
+app.delete('/api/appointments/cancel/:appointmentId', (req, res) => {
+    const appointmentId = parseInt(req.params.appointmentId);
+    db.query('CALL CancelAppointment(?)', [appointmentId], (error, results) => {
+        if (error) {
+            console.error('Error cancelling appointment:', error);
+            return res.status(500).json({ error: 'Database query failed', message: error.message });
+        }
+        res.json({ message: 'Appointment cancelled successfully' });
+    });
+});
+  
 app.post('/api/login/staff', async (req, res) => { // Add async here
     const { staffUsername, staffPassword } = req.body;
 
@@ -918,23 +1008,24 @@ app.get('/api/patients/:staffId', (req, res) => {
     });
   });
 
-  // Endpoint to get today's appointments for a doctor
-app.get('/api/appointments/:staffId', (req, res) => {
-    const staffId = req.params.staffId;
-  
-    db.query('CALL GetTodayAppointments(?)', [staffId], (error, results) => {
-      if (error) {
-        console.error("Error fetching appointments:", error);
-        return res.status(500).json({ error: 'Error fetching appointments' });
-      }
-      res.json(results[0]); // results[0] contains the result set
-    });
+ // Endpoint to get today's appointments for a doctor
+app.get('/api/appointment/:staffId', (req, res) => {
+  const staffId = req.params.staffId;
+
+  db.query('CALL GetTodayAppointments(?)', [staffId], (error, results) => {
+    if (error) {
+      console.error("Error fetching appointments:", error);
+      return res.status(500).json({ error: 'Error fetching appointments' });
+    }
+    res.json(results[0]); // results[0] contains the result set
   });
-  
+});
+
+
  
 // Route for applying leave
 app.post('/api/leave', (req, res) => {
-    const { hol_stf_id, hol_type, hol_date, hol_reason, status } = req.body;
+    const { hol_stf_id, hol_type, hol_date, hol_reason, hol_status } = req.body;
 
     // Input validation
     if (!hol_stf_id || !hol_type || !hol_date || !hol_reason) {
@@ -942,8 +1033,8 @@ app.post('/api/leave', (req, res) => {
     }
 
     // SQL query to insert a new leave request
-    const sql = "INSERT INTO Holiday (hol_stf_id, hol_type, hol_date, hol_reason, status) VALUES (?, ?, ?, ?, ?)";
-    const values = [hol_stf_id, hol_type, hol_date, hol_reason, status];
+    const sql = "INSERT INTO Holiday (hol_stf_id, hol_type, hol_date, hol_reason, hol_status) VALUES (?, ?, ?, ?, ?)";
+    const values = [hol_stf_id, hol_type, hol_date, hol_reason, hol_status];
 
     db.query(sql, values, (error, results) => {
         if (error) {
@@ -957,10 +1048,10 @@ app.post('/api/leave', (req, res) => {
 
 
 app.post('/api/updateLeaveStatus', (req, res) => {
-  const { holId, hol_type, hol_date, hol_reason, status } = req.body; // Ensure holId is extracted
+  const { holId, hol_type, hol_date, hol_reason, hol_status } = req.body; // Ensure holId is extracted
 
-  const query = 'UPDATE Holiday SET hol_type = ?, hol_date = ?, hol_reason = ?, status = ? WHERE hol_id = ?';
-  const values = [hol_type, hol_date, hol_reason, status, holId]; // Include all values in the correct order
+  const query = 'UPDATE Holiday SET hol_type = ?, hol_date = ?, hol_reason = ?, hol_status = ? WHERE hol_id = ?';
+  const values = [hol_type, hol_date, hol_reason, hol_status, holId]; // Include all values in the correct order
 
   db.query(query, values, (error, results) => {
     if (error) {
@@ -979,14 +1070,13 @@ app.post('/api/updateLeaveStatus', (req, res) => {
 
   
   // Route for updating leave
-  // Route for updating leave
 app.put('/api/leave/:id', (req, res) => {
   const { id } = req.params; // Get the leave ID from the URL parameter
-  const { hol_type, hol_date, hol_reason, status } = req.body;
+  const { hol_type, hol_date, hol_reason, hol_status } = req.body;
 
 
-  const sql = 'UPDATE Holiday SET hol_type = ?, hol_date = ?, hol_reason = ?, status = ? WHERE hol_id = ?';
-  db.query(sql, [hol_type, hol_date, hol_reason, status, id], (err, result) => {
+  const sql = 'UPDATE Holiday SET hol_type = ?, hol_date = ?, hol_reason = ?, hol_status = ? WHERE hol_id = ?';
+  db.query(sql, [hol_type, hol_date, hol_reason, hol_status, id], (err, result) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).send('Database error');
@@ -1052,57 +1142,26 @@ app.put('/api/leaves/:id', (req, res) => {
 
   db.query('CALL ApproveRejectLeave(?, ?)', [leaveId, status], (err) => {
       if (err) return res.status(500).send(err);
-      res.send(`Leave application ${status === 'Approved' ? 'Approved' : 'Rejected'}.`);
+      res.send(`Leave application ${status === 'A' ? 'A' : 'R'}.`);
   });
 });
 
 
-app.post('/api/consultationHistory', (req, res) => {
-  const { patientRegNo, doctorName, selectedDate } = req.body;
 
-  const query = `CALL GetConsultationHistory(?, ?, ?)`;
+app.get('/api/patient/:patientId/history', (req, res) => {
+  const patientId = req.params.patientId;
+  const query = 'CALL GetConsultationHistory(?)';
 
-  db.query(query, [patientRegNo, doctorName, selectedDate], (err, results) => {
-      if (err) {
-          console.error('Error fetching consultation history:', err);
-          return res.status(500).send('Error fetching consultation history');
+  connection.query(query, [patientId], (error, results) => {
+      if (error) {
+          return res.status(500).send('Error fetching history');
       }
-      return res.json(results[0]); // Return the result
+      res.json(results[0]); // Return the consultation and medication history
   });
 });
 
 
-app.post('/api/patientChartByDate', (req, res) => {
-  const { patientRegNo, selectedDate } = req.body;
-
-  const query = `CALL GetPatientChartByDate(?, ?)`;
-
-  db.query(query, [patientRegNo, selectedDate], (err, results) => {
-      if (err) {
-          console.error('Error fetching patient chart:', err);
-          return res.status(500).send('Error fetching patient chart');
-      }
-      return res.json(results[0]); // Return the result
-  });
-});
-
-
-app.post('/api/allConsultations', (req, res) => {
-  const { patientRegNo } = req.body;
-
-  const query = `CALL GetAllConsultationsForPatient(?)`;
-
-  db.query(query, [patientRegNo], (err, results) => {
-      if (err) {
-          console.error('Error fetching all consultations:', err);
-          return res.status(500).send('Error fetching all consultations');
-      }
-      return res.json(results[0]); // Return the result
-  });
-});
-
-
-app.post('/api/addNewChart', (req, res) => {
+app.post('/api/addNewChart', async (req, res) => {
   const {
     patientRegNo,
     doctorId,
@@ -1113,56 +1172,193 @@ app.post('/api/addNewChart', (req, res) => {
     medicationEntries // expecting an array of medication entries
   } = req.body;
 
-  // Insert consultation details
-  const consultationQuery = `CALL AddNewChart(?, ?, ?, ?, ?, ?)`;
-  const consultationParams = [
-    patientRegNo,
-    doctorId,
-    appointmentDate,
-    patientCondition,
-    diagnosis,
-    remarks
-  ];
+  console.log('Appointment Date:', appointmentDate);
 
-  db.query(consultationQuery, consultationParams, (error, consultationResults) => {
-    if (error) {
-      console.error('Error executing consultation query:', error);
-      return res.status(500).send('Internal Server Error');
-    }
+  const query = `CALL AddNewChart(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-    // After inserting consultation, insert medications
-    const consultationId = consultationResults.insertId; // Assuming your procedure returns the new consultation ID
-
-    const medicationQuery = `CALL AddMedication(?, ?, ?, ?, ?, ?)`;
-    const medicationPromises = medicationEntries.map(entry => {
-      const medicationParams = [
-        consultationId,
-        entry.name,
-        entry.dosage,
-        entry.duration,
-        entry.instruction,
-        entry.remarks
+  try {
+    // Loop through the medication entries and call the stored procedure for each
+    for (const med of medicationEntries) {
+      const params = [
+        patientRegNo,
+        doctorId,
+        appointmentDate,
+        patientCondition,
+        diagnosis,
+        remarks,
+        med.name,
+        med.dosage,
+        med.duration,
+        med.instruction,
+        med.remarks
       ];
-      return new Promise((resolve, reject) => {
-        db.query(medicationQuery, medicationParams, (medError) => {
-          if (medError) {
-            console.error('Error executing medication query:', medError);
-            reject(medError);
-          } else {
-            resolve();
+
+      await new Promise((resolve, reject) => {
+        db.query(query, params, (error, results) => {
+          if (error) {
+            console.error('Error executing query:', error);
+            return reject(error);
           }
+          resolve(results);
         });
       });
-    });
+    }
+    res.status(200).send('Charts successfully saved!');
+  } catch (error) {
+    console.error('Error saving data:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
 
-    Promise.all(medicationPromises)
-      .then(() => res.status(200).send('Chart successfully saved!'))
-      .catch(() => res.status(500).send('Error saving medication entries'));
+// Add this to your server.js or appropriate routes file
+app.get('/api/patientHistory/:regNo', (req, res) => {
+  const { regNo } = req.params;
+
+  const query = `
+    SELECT 
+        c.cons_id, c.cons_pat_condition, c.cons_diagnosis, c.cons_remarks, 
+        c.cons_appt_id, c.cons_stf_id,
+        a.appt_date,  -- Appointment date
+        s.stf_name,   -- Staff name
+        m.med_name, m.med_dosage, m.med_duration, m.med_instruction, m.med_remarks
+    FROM Consultation c
+    LEFT JOIN Medication m ON c.cons_id = m.med_cons_id
+    LEFT JOIN Appointment a ON c.cons_appt_id = a.appt_id  -- Join with the Appointment table
+    LEFT JOIN Staff s ON c.cons_stf_id = s.stf_id  -- Join with the Staff table
+    WHERE c.cons_pat_id = (SELECT pat_id FROM Patient WHERE pat_reg_no = ?)
+      AND a.appt_status = 'F'  -- Only include full day appointments
+  `;
+
+  db.query(query, [regNo], (error, results) => {
+      if (error) {
+          console.error('Error fetching patient history:', error);
+          return res.status(500).send('Internal Server Error');
+      }
+      res.json(results);
   });
 });
 
+
+app.get('/api/patientsId/:regNo', (req, res) => {
+  const regNo = req.query.regNo;
+  // Query the database to find the patient ID based on regNo
+  // Example query
+  connection.query('SELECT patientId FROM Patients WHERE regNo = ?', [regNo], (error, results) => {
+      if (error) {
+          return res.status(500).json({ error: 'Database query failed.' });
+      }
+      if (results.length > 0) {
+          return res.json({ patientId: results[0].patientId });
+      } else {
+          return res.status(404).json({ error: 'Patient not found.' });
+      }
+  });
+});
+
+
+app.get('/api/appointments/count/:staffId', (req, res) => {
+  const { staffId } = req.params; // Get staffId from URL parameters
+
+  const currentDate = new Date().toISOString().slice(0, 10); // Format YYYY-MM-DD
+
+  // SQL query to count total appointments and upcoming appointments for today for the specific staff
+  const query = `
+    SELECT 
+      COUNT(*) AS totalAppointments, 
+      SUM(CASE WHEN appt_status = 'B' THEN 1 ELSE 0 END) AS upcomingAppointments 
+    FROM Appointment 
+    WHERE appt_date = ? AND (appt_status = 'F' OR appt_status = 'B') AND appt_stf_id = ?`; // Ensure this is the correct column name for staff ID
+
+  db.query(query, [currentDate, staffId], (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+  });
+});
 
 // Start the server
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });
+
+
+
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+
+const DocAppmt = () => {
+  const [appointmentsData, setAppointmentsData] = useState([]);
+  const navigate = useNavigate();
+  const staffId = localStorage.getItem('staff_id'); // Assuming staff ID is stored in localStorage
+
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/api/appointment/${staffId}`);
+        setAppointmentsData(response.data);
+
+      } catch (error) {
+        console.error("Error fetching appointments:", error);
+      }
+    };
+
+    fetchAppointments();
+  }, [staffId]);
+  
+
+  const addChart = (tokenNo, regNo) => {
+    alert(`Adding chart for token number: ${tokenNo}`);
+    goToNewPage(regNo); // Pass the regNo to the function
+  };
+
+  const goToNewPage = (regNo) => {
+    localStorage.setItem('regno', regNo);
+
+navigate('/doctorpage/appointment_schedule/chart'); // Navigate to the new page
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FFE8D6] p-6">
+      <div className=" w-full bg-[#DDB892] shadow-md rounded-md p-6 ">
+        <h1 className="text-2xl font-bold mb-10 text-center text-gray-700">Appointment Schedule List</h1>
+
+        <table className="w-full bg-[#DDB892] border border-gray-300">
+          <thead>
+            <tr className="bg-[#E6CCB2] text-left">
+              <th className="p-3 text-center">Token No</th>
+              <th className="p-3 text-center">Reg No</th>
+              <th className="p-3 text-center">Name</th>
+              <th className="p-3 text-center">Age</th>
+              <th className="p-3 text-center">Sex</th>
+              <th className="p-3 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {appointmentsData?.map((appointment, index) => (
+
+              <tr key={index} className="border-b">
+                <td className="p-3 text-center">{appointment.tokenNo}</td>
+                <td className="p-3 text-center">{appointment.regNo}</td>
+                <td className="p-3 text-center">{appointment.name}</td>
+                <td className="p-3 text-center">{appointment.age}</td>
+                <td className="p-3 text-center">{appointment.sex}</td>
+                <td className="p-3 text-center">
+                  <button
+                    onClick={() => addChart(appointment.tokenNo, appointment.regNo)}  // Pass regNo along with tokenNo
+                    className="bg-[#7F4F24] hover:bg-[#7F5539] text-white font-bold py-2 px-4 rounded transition duration-300 transform hover:scale-105"
+                  >
+                    Add Chart
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+export default DocAppmt;

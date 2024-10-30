@@ -25,15 +25,16 @@ const DoctorView = () => {
       try {
         const patient_reg_no = localStorage.getItem('regno');
         const staffId = localStorage.getItem('staff_id');
-
+        const apptTokNo = localStorage.getItem('tokNo');
+        console.log('TOKEN ',apptTokNo);
         const doctorResponse = await axios.get(`http://localhost:5000/api/doctor/${staffId}`);
         setDoctorName(doctorResponse.data.stf_name);
         setPatientRegNo(patient_reg_no);
         
-        const patientResponse = await axios.get(`http://localhost:5000/api/patientsId?regNo=${patient_reg_no}`);
-        setPatientId(patientResponse.data.patientId);
-        
-        const appointmentsResponse = await axios.get(`http://localhost:5000/api/appointments?patientId=${patientId}`);
+        const patientResponse = await axios.get(`http://localhost:5000/api/patientsId/${patient_reg_no}`);
+        const patientId = patientResponse.data.patientId; 
+        setPatientId(patientId);
+        const appointmentsResponse = await axios.get(`http://localhost:5000/api/appointments/${patientId}`);
         setPreviousAppointments(appointmentsResponse.data.previousAppointments);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -106,11 +107,13 @@ const DoctorView = () => {
     try {
       const appointmentDate = new Date(selectedDate).toISOString().slice(0, 10);
       const doctorId = localStorage.getItem('staff_id');
-
+      const apptTokNo = localStorage.getItem('tokNo');
+      console.log('TOKEN ',apptTokNo);
       const saveData = {
         patientRegNo,
         doctorId,
         appointmentDate,
+        apptTokNo,
         patientCondition,
         diagnosis,
         remarks,
